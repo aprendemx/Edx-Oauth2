@@ -11,7 +11,6 @@ deploy_prod:
     - source $TUTOR_DIR/venv/bin/activate
     - cd $TUTOR_DIR
     - sudo pip install -e ./edx-oauth2-nem
-    - sudo tutor plugins enable edx-oauth2-nem
     - sudo tutor images build openedx
     - sudo tutor local start -d
   tags:
