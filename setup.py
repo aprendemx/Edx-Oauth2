@@ -20,7 +20,7 @@ def load_readme():
 def load_about():
     about = {}
     with io.open(
-        os.path.join(HERE, "oauth2_wordpress", "__about__.py"),
+        os.path.join(HERE, "oauth2_nem", "__about__.py"),
         "rt",
         encoding="utf-8",
     ) as f:
@@ -65,10 +65,10 @@ ABOUT = load_about()
 VERSION = ABOUT["__version__"]
 
 setup(
-    name="edx-oauth2-wordpress-backend",
+    name="edx-oauth2-nem",
     version=VERSION,
     description=(
-        "An OAuth backend for the WP OAuth Wordpress Plugin, "
+        "An OAuth backend for the Nueva Escuela Mexicana Digital, "
         "that is customized for use in Open edX installations."
     ),
     long_description=README,
@@ -84,7 +84,7 @@ setup(
     include_package_data=True,
     package_data={"": ["*.html"]},  # include any templates found in this repo.
     zip_safe=False,
-    keywords="Open edX, oauth, Wordpress",
+    keywords="Open edX, oauth, custom nemd, nueva escuela mexicana digital",
     python_requires=">=3.7",
     install_requires=load_requirements("requirements/stable-psa.txt"),
     classifiers=[

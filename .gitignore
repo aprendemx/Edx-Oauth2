@@ -83,3 +83,4 @@ tests/__init__.py
 default.db
 
 .vscode/
+.github

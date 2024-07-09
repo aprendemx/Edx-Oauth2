@@ -1,7 +1,7 @@
 Open edX OAuth2 Backend for Wordpress
 =====================================
 .. image:: https://img.shields.io/static/v1?label=pypi&style=flat-square&color=0475b6&message=edx-oauth2-wordpress-backend
-  :alt: PyPi edx-oauth2-wordpress-backend
+  :alt: PyPi edx-oauth2-nemd
   :target: https://pypi.org/project/edx-oauth2-wordpress-backend/
 
 .. image:: https://img.shields.io/badge/hack.d-Lawrence%20McDaniel-orange.svg
@@ -13,7 +13,7 @@ Open edX OAuth2 Backend for Wordpress
   :target: https://discuss.openedx.org/
 
 .. image:: https://img.shields.io/static/v1?label=WP-Oauth&style=flat-square&color=1054ff&message=Server
-  :alt: WP Oauth
+  :alt: Oauth
   :target: https://wp-oauth.com/
 
 |
@@ -44,7 +44,7 @@ add this package to your project's requiremets.txt, or install it from the comma
 
 ..  code-block:: shell
 
-  pip install edx-oauth2-wordpress-backend
+  pip install ./edx-oauth2-nem
 
 2. subclass WPOpenEdxOAuth2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
