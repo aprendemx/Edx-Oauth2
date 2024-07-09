@@ -53,10 +53,10 @@ Subclass oauth2_wordpress.wp_oauth.WPOpenEdxOAuth2, and configure for your Wordp
 
 ..  code-block:: python
 
-  from oauth2_wordpress.wp_oauth import WPOpenEdxOAuth2
+  from oauth2_nem.nem_oauth import NEMOpenEdxOAuth2
 
 
-  class StepwiseMathWPOAuth2(WPOpenEdxOAuth2):
+  class StepwiseMathWPOAuth2(NEMOpenEdxOAuth2):
 
       # This defines the backend name and identifies it during the auth process.
       # The name is used in the URLs /login/<backend name> and /complete/<backend name>.
@@ -86,7 +86,7 @@ Subclass oauth2_wordpress.wp_oauth.WPOpenEdxOAuth2, and configure for your Wordp
   ADDL_INSTALLED_APPS:
   - "oauth2_wordpress"
   THIRD_PARTY_AUTH_BACKENDS:
-  - "oauth2_wordpress.wp_oauth.StepwiseMathWPOAuth2"
+  - "oauth2_nem.nem_oauth.NEMOpenEdxOAuth2"
   ENABLE_REQUIRE_THIRD_PARTY_AUTH: true
 
 add these settings to django.conf:
