@@ -1,7 +1,6 @@
 
 
 stages:
-  - build
   - deploy
 
 
@@ -20,3 +19,4 @@ deploy_prod:
   only:
     refs:
       - main
+
