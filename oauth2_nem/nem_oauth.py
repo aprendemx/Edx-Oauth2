@@ -9,6 +9,7 @@ usage:          subclass of BaseOAuth2 Third Party Authtencation client to
                 the dict that WP Oauth returns versus the dict that Open edX
                 actually needs.
 """
+import datetime
 import json
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -24,7 +25,7 @@ logger = getLogger(__name__)
 VERBOSE_LOGGING = True
 
 
-class WPOpenEdxOAuth2(BaseOAuth2):
+class NEMOpenEdxOAuth2(BaseOAuth2):
     """
     WP OAuth authentication backend customized for Open edX.
     see https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html
@@ -50,19 +51,19 @@ class WPOpenEdxOAuth2(BaseOAuth2):
     # Third Party Authentication / Provider Configuration (OAuth)
     # setup page drop-down box titled, "Backend name:", just above
     # the "Client ID:" and "Client Secret:" fields.
-    name = "wp-oauth"
+    name = "nemd"
 
     # note: no slash at the end of the base url. Python Social Auth
     # might clean this up for you, but i'm not 100% certain of that.
-    BASE_URL = "https://set-me-please.com"
+    BASE_URL = "https://nuevaescuelamexicana.sep.gob.mx/"
 
     # a path to append to the BASE_URL: https://oauth_host.com/oauth/
-    PATH = "oauth/"
+    PATH = "o/"
 
     # endpoint defaults
     AUTHORIZATION_ENDPOINT = "authorize"
     TOKEN_ENDPOINT = "token"
-    USERINFO_ENDPOINT = "me"
+    USERINFO_ENDPOINT = "user/info"
 
     # The default key name where the user identification field is defined, it’s
     # used in the auth process when some basic user data is returned. This Id
@@ -81,7 +82,7 @@ class WPOpenEdxOAuth2(BaseOAuth2):
     # wp-oauth supports 4 scopes: basic, email, profile, openeid.
     # we want the first three of these.
     # see https://wp-oauth.com/docs/how-to/adding-supported-scopes/
-    DEFAULT_SCOPE = ["basic", "profile", "email"]
+    DEFAULT_SCOPE = ["read"]
 
     # Specifying the method type required to retrieve your access token if it’s
     # not the default GET request.
@@ -101,6 +102,8 @@ class WPOpenEdxOAuth2(BaseOAuth2):
         ("id", "id"),
         ("is_superuser", "is_superuser"),
         ("is_staff", "is_staff"),
+        ("date_joined", "date_joined"),
+        ("date_joined", "date_joined"),
         ("date_joined", "date_joined"),
     ]
 
@@ -139,14 +142,11 @@ class WPOpenEdxOAuth2(BaseOAuth2):
         """
         qc_keys = [
             "id",
-            "date_joined",
             "email",
             "first_name",
-            "fullname",
             "is_staff",
             "is_superuser",
             "last_name",
-            "username",
         ]
         return self.is_valid_dict(response, qc_keys)
 
@@ -164,14 +164,12 @@ class WPOpenEdxOAuth2(BaseOAuth2):
         supposed to be a dict with at least the keys included in qc_keys.
         """
         qc_keys = [
-            "ID",
-            "capabilities",
-            "display_name",
-            "user_email",
-            "user_login",
-            "user_roles",
-            "user_registered",
-            "user_status",
+            "id",
+            "email",
+            "first_name",
+            "is_staff",
+            "is_superuser",
+            "last_name",
         ]
         return self.is_valid_dict(response, qc_keys)
 
@@ -337,25 +335,19 @@ class WPOpenEdxOAuth2(BaseOAuth2):
         first_name = split_name[0] if len(split_name) > 0 else ""
         last_name = split_name[-1] if len(split_name) == 2 else ""
 
-        # check for superuser / staff status
-        user_roles = response.get("user_roles", [])
-        super_user = "administrator" in user_roles
-        is_staff = "administrator" in user_roles
-
         self.user_details = {
             "id": int(response.get("ID"), 0),
-            "username": response.get("user_login", ""),
-            "email": response.get("user_email", ""),
+            "username": response.get("email", ""),
+            "email": response.get("email", ""),
             "first_name": first_name,
             "last_name": last_name,
-            "fullname": response.get("display_name", ""),
-            "is_superuser": super_user,
-            "is_staff": is_staff,
+            "fullname": first_name + " " + last_name,
+            "is_superuser":  response.get("is_superuser", ""),
+            "is_staff":  response.get("is_superuser", ""),
             "refresh_token": response.get("refresh_token", ""),
             "scope": response.get("scope", ""),
             "token_type": response.get("token_type", ""),
-            "date_joined": response.get("user_registered", ""),
-            "user_status": response.get("user_status", ""),
+            "date_joined": response.get("user_registered", datetime.datetime.today()),
         }
         if VERBOSE_LOGGING:
             logger.info(
