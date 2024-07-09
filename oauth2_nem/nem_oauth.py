@@ -23,7 +23,7 @@ User = get_user_model()
 logger = getLogger(__name__)
 
 VERBOSE_LOGGING = True
-
+#oauth2_nem.nem_oauth.NEMOpenEdxOAuth2
 
 class NEMOpenEdxOAuth2(BaseOAuth2):
     """
