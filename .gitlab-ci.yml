@@ -19,4 +19,4 @@ deploy_prod:
     - edx
   only:
     refs:
-      - master
+      - main
