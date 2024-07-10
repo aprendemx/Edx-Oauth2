@@ -84,10 +84,19 @@ Subclass oauth2_wordpress.wp_oauth.WPOpenEdxOAuth2, and configure for your Wordp
 ..  code-block:: yaml
 
   ADDL_INSTALLED_APPS:
-  - "oauth2_wordpress"
+  - "oauth2_nem"
   THIRD_PARTY_AUTH_BACKENDS:
   - "oauth2_nem.nem_oauth.NEMOpenEdxOAuth2"
   ENABLE_REQUIRE_THIRD_PARTY_AUTH: true
+
+4. setup edx with tutor
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: shell
+     tutor config save --append ADDL_INSTALLED_APPS="oauth2_nem"
+     tutor config save --append THIRD_PARTY_AUTH_BACKENDS="oauth2_nem.nem_oauth.NEMOpenEdxOAuth2"
+     tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="git+https://gitlab.com/mexicox/edx-oauth2-nem.git"
+     tutor images build openedx
 
 add these settings to django.conf:
 
