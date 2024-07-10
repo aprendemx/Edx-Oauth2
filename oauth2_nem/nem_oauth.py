@@ -9,7 +9,7 @@ usage:          subclass of BaseOAuth2 Third Party Authtencation client to
                 the dict that WP Oauth returns versus the dict that Open edX
                 actually needs.
 """
-import datetime
+from datetime import datetime
 import json
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -270,7 +270,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
 
         # try to parse out the first and last names
 
-
+        n = datetime.now()
         self.user_details = {
             "id": int(response.get("id",0)),
             "username": response.get("email", ""),
@@ -280,7 +280,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             "refresh_token": response.get("refresh_token", ""),
             "scope": response.get("scope", ""),
             "token_type": response.get("token_type", ""),
-            "date_joined": response.get("user_registered", datetime.datetime.today()),
+            "date_joined": response.get("user_registered", n.isoformat())
         }
         if VERBOSE_LOGGING:
             logger.info(
