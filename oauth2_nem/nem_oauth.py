@@ -247,20 +247,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
 
     @user_details.setter
     def user_details(self, value: dict):
-        if self.is_valid_user_details(value):
-            if VERBOSE_LOGGING:
-                logger.info(
-                    "user_details.setter: new value set {value}".format(
-                        value=json.dumps(value, sort_keys=True, indent=4)
-                    )
-                )
-            self._user_details = value
-        else:
-            logger.error(
-                "user_details.setter: tried to pass an invalid object {value}".format(
-                    value=json.dumps(value, sort_keys=True, indent=4)
-                )
-            )
+        self._user_details = value
 
     # see https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html
     # Return user details from the Wordpress user account
@@ -333,7 +320,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             # this gets called just prior to account creation for
             # new users, hence, we need to catch DoesNotExist
             # exceptions.
-            user = User.objects.get(email=user_details["email"])
+            user = User.objects.get(email=response["email"])
             self.user_details=user_details
         except User.DoesNotExist:
             return self.user_details
