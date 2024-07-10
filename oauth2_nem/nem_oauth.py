@@ -102,9 +102,6 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
         ("id", "id"),
         ("is_superuser", "is_superuser"),
         ("is_staff", "is_staff"),
-        ("date_joined", "date_joined"),
-        ("date_joined", "date_joined"),
-        ("date_joined", "date_joined"),
     ]
 
     # the value of the scope separator is user-defined. Check the
@@ -146,7 +143,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             "first_name",
             "is_staff",
             "is_superuser",
-            "last_name",
+            "last_name"
         ]
         return self.is_valid_dict(response, qc_keys)
 
@@ -379,20 +376,20 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
                     )
                 )
 
-            user_details = self.get_user_details(response)
+            user_details =  response #self.get_user_details(response)
 
         except ValueError as e:
             logger.error("user_data() {err}".format(err=e))
             return None
 
-        if not self.is_valid_user_details(user_details):
-            logger.error(
-                "user_data() user_details return object of {t} is invalid: {user_details}".format(
-                    t=self.get_response_type(response),
-                    user_details=json.dumps(user_details, sort_keys=True, indent=4),
-                )
-            )
-            return self.user_details
+        #if not self.is_valid_user_details(user_details):
+        #    logger.error(
+        #        "user_data() user_details return object of {t} is invalid: {user_details}".format(
+        #            t=self.get_response_type(response),
+        #            user_details=json.dumps(user_details, sort_keys=True, indent=4),
+        #        )
+        #    )
+        #    return self.user_details
 
         # add syncronization of any data fields that get missed by the built-in
         # open edx third party authentication sync functionality.
@@ -400,27 +397,15 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             # this gets called just prior to account creation for
             # new users, hence, we need to catch DoesNotExist
             # exceptions.
-            user = User.objects.get(username=self.user_details["username"])
+            user = User.objects.get(email=self.user_details["email"])
         except User.DoesNotExist:
             return self.user_details
 
         if self.UPDATE_USER_ON_LOGIN:
-            if (user.is_superuser != self.user_details["is_superuser"]) or (
-                user.is_staff != self.user_details["is_staff"]
-            ):
-                user.is_superuser = self.user_details["is_superuser"]
-                user.is_staff = self.user_details["is_staff"]
-                user.save()
-                logger.info(
-                    "Updated the is_superuser/is_staff flags for user {username}".format(
-                        username=user.username
-                    )
-                )
-            if (user.first_name != self.user_details["first_name"]) or (
-                user.last_name != self.user_details["last_name"]
-            ):
-                user.first_name = self.user_details["first_name"]
+
                 user.last_name = self.user_details["last_name"]
+                user.first_name = self.user_details["first_name"]
+                user.email = self.user_details["username"]
                 user.save()
                 logger.info(
                     "Updated first_name/last_name for user {username}".format(
