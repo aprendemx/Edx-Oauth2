@@ -61,9 +61,9 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
     PATH = "o/"
 
     # endpoint defaults
-    AUTHORIZATION_ENDPOINT = "authorize"
-    TOKEN_ENDPOINT = "token"
-    USERINFO_ENDPOINT = "user/info"
+    AUTHORIZATION_ENDPOINT = "authorize/"
+    TOKEN_ENDPOINT = "token/"
+    USERINFO_ENDPOINT = "user/info/"
 
     # The default key name where the user identification field is defined, it’s
     # used in the auth process when some basic user data is returned. This Id
