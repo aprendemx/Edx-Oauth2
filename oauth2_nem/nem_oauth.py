@@ -332,7 +332,8 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             # this gets called just prior to account creation for
             # new users, hence, we need to catch DoesNotExist
             # exceptions.
-            user = User.objects.get(email=self.user_details["email"])
+            user = User.objects.get(email=user_details["email"])
+            self.user_details=user_details
         except User.DoesNotExist:
             return self.user_details
 
