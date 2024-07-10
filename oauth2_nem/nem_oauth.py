@@ -280,7 +280,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             "refresh_token": response.get("refresh_token", ""),
             "scope": response.get("scope", ""),
             "token_type": response.get("token_type", ""),
-            "date_joined": response.get("user_registered", n.isoformat())
+            "date_joined": str(n.isoformat())
         }
         if VERBOSE_LOGGING:
             logger.info(
