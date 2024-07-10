@@ -265,82 +265,17 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
     # see https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html
     # Return user details from the Wordpress user account
     def get_user_details(self, response) -> dict:
-        if not self.is_valid_get_user_details_response(response):
-            logger.error(
-                "get_user_details() received an invalid response object of {t}:{response} Cannot continue. Returning: {retval}".format(
-                    t=self.get_response_type(response),
-                    response=json.dumps(response, sort_keys=True, indent=4),
-                    retval=json.dumps(self.user_details, sort_keys=True, indent=4),
-                )
-            )
-            # if we have cached results then we might be able to recover.
-            return self.user_details
 
-        if VERBOSE_LOGGING:
-            logger.info(
-                "get_user_details() received {t}: {response}".format(
-                    t=self.get_response_type(response),
-                    response=json.dumps(response, sort_keys=True, indent=4),
-                )
-            )
-        # a def in the third_party_auth pipeline list calls get_user_details() after its already
-        # been called once. i don't know why. but, it passes the original get_user_details() dict
-        # enhanced with additional token-related keys. if we receive this modified dict then we
-        # should pass it along to the next defs in the pipeline.
-        #
-        # If most of the original keys (see dict definition below) exist in the response object
-        # then we can assume that this is our case.
-        if self.is_get_user_details_extended_dict(response):
-            # -------------------------------------------------------------
-            # expected use case #2: an enhanced derivation of an original
-            # user_details dict. This is created when get_user_details()
-            # is called from user_data().
-            # -------------------------------------------------------------
-            self.user_details = response
-            if VERBOSE_LOGGING:
-                logger.info(
-                    "get_user_details() returning {t}: {response}".format(
-                        t=self.get_response_type(response),
-                        response=json.dumps(
-                            self.user_details, sort_keys=True, indent=4
-                        ),
-                    )
-                )
-            return self.user_details
 
-        # at this point we've ruled out the possibility of the response object
-        # being a derivation of a user_details dict. So, it should therefore
-        # conform to the structure of a wp-oauth dict.
-        if not self.is_wp_oauth_response(response):
-            logger.warning(
-                "get_user_details() response object of {t} is not a valid wp-oauth object: {response}. Cannot continue. returning: {retval}".format(
-                    t=self.get_response_type(response),
-                    response=json.dumps(response, sort_keys=True, indent=4),
-                    retval=json.dumps(self.user_details, sort_keys=True, indent=4),
-                )
-            )
-            return self.user_details
-
-        # -------------------------------------------------------------
-        # expected use case #1: response object is a dict with all required keys.
-        # -------------------------------------------------------------
-        if VERBOSE_LOGGING:
-            logger.info("get_user_details() processing response object")
 
         # try to parse out the first and last names
-        split_name = response.get("display_name", "").split()
-        first_name = split_name[0] if len(split_name) > 0 else ""
-        last_name = split_name[-1] if len(split_name) == 2 else ""
 
         self.user_details = {
-            "id": int(response.get("ID"), 0),
+            "id": int(response.get("id"), 0),
             "username": response.get("email", ""),
             "email": response.get("email", ""),
-            "first_name": first_name,
-            "last_name": last_name,
-            "fullname": first_name + " " + last_name,
-            "is_superuser":  response.get("is_superuser", ""),
-            "is_staff":  response.get("is_superuser", ""),
+            "first_name": response.get("first_name"),
+            "last_name": response.get("last_name"),
             "refresh_token": response.get("refresh_token", ""),
             "scope": response.get("scope", ""),
             "token_type": response.get("token_type", ""),
@@ -376,7 +311,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
                     )
                 )
 
-            user_details =  response #self.get_user_details(response)
+            user_details =  self.get_user_details(response)
 
         except ValueError as e:
             logger.error("user_data() {err}".format(err=e))
