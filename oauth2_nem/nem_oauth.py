@@ -63,7 +63,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
     # endpoint defaults
     AUTHORIZATION_ENDPOINT = "authorize/"
     TOKEN_ENDPOINT = "token/"
-    USERINFO_ENDPOINT = "user/info/"
+    USERINFO_ENDPOINT = "/user/info/"
 
     # The default key name where the user identification field is defined, it’s
     # used in the auth process when some basic user data is returned. This Id
@@ -239,7 +239,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
 
     @property
     def USER_QUERY(self) -> str:
-        url = urljoin(self.URL, self.USERINFO_ENDPOINT)
+        url = urljoin(self.BASE_URL, self.USERINFO_ENDPOINT)
         if VERBOSE_LOGGING:
             logger.info("USER_QUERY: {url}".format(url=url))
         return url
