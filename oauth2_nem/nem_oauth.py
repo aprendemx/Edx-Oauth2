@@ -270,8 +270,9 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
 
         # try to parse out the first and last names
 
+
         self.user_details = {
-            "id": int(response.get("id"), 0),
+            "id": int(response.get("id",0)),
             "username": response.get("email", ""),
             "email": response.get("email", ""),
             "first_name": response.get("first_name"),
