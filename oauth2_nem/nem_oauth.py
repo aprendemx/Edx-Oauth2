@@ -315,7 +315,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
         if self.UPDATE_USER_ON_LOGIN:
 
                 user.last_name = self.user_details["last_name"]
-                user.first_name = self.user_details["name"]
+                user.first_name = self.user_details["first_name"]
                 user.email = self.user_details["username"]
                 user.save()
                 logger.info(
