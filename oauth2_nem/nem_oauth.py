@@ -252,9 +252,6 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
     # see https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html
     # Return user details from the Wordpress user account
     def get_user_details(self, response) -> dict:
-
-
-
         # try to parse out the first and last names
 
         n = datetime.now()
@@ -262,8 +259,8 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             "id": int(response.get("id",0)),
             "username": response.get("email", ""),
             "email": response.get("email", ""),
-            "first_name": response.get("first_name"),
-            "last_name": response.get("last_name"),
+            "first_name": str(response.get("name")),
+            "last_name": str(response.get("last_name")),
             "refresh_token": response.get("refresh_token", ""),
             "scope": response.get("scope", ""),
             "token_type": response.get("token_type", ""),
@@ -305,17 +302,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             logger.error("user_data() {err}".format(err=e))
             return None
 
-        #if not self.is_valid_user_details(user_details):
-        #    logger.error(
-        #        "user_data() user_details return object of {t} is invalid: {user_details}".format(
-        #            t=self.get_response_type(response),
-        #            user_details=json.dumps(user_details, sort_keys=True, indent=4),
-        #        )
-        #    )
-        #    return self.user_details
 
-        # add syncronization of any data fields that get missed by the built-in
-        # open edx third party authentication sync functionality.
         try:
             # this gets called just prior to account creation for
             # new users, hence, we need to catch DoesNotExist
@@ -328,7 +315,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
         if self.UPDATE_USER_ON_LOGIN:
 
                 user.last_name = self.user_details["last_name"]
-                user.first_name = self.user_details["first_name"]
+                user.first_name = self.user_details["name"]
                 user.email = self.user_details["username"]
                 user.save()
                 logger.info(
