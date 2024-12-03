@@ -323,5 +323,4 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
                         username=user.username
                     )
                 )
-
         return self.user_details
