@@ -51,7 +51,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
     # Third Party Authentication / Provider Configuration (OAuth)
     # setup page drop-down box titled, "Backend name:", just above
     # the "Client ID:" and "Client Secret:" fields.
-    name = "nemd"
+    name = "nem-oauth"
 
     # note: no slash at the end of the base url. Python Social Auth
     # might clean this up for you, but i'm not 100% certain of that.

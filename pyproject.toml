@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
 name = "edx-oauth2-nem"
-version = "1.0.21"
+version = "1.0.22"
 authors = [
   { name="Lawrence McDaniel", email="lpm0073@gmail.com" },
 ]
@@ -20,7 +20,7 @@ dependencies = [
   "social-auth-core==4.3.0",
   "social-auth-app-django==5.0.0"
 ]
-keywords = ["Open edX", "oauth", "Wordpress"]
+keywords = ["Open edX", "oauth", "NEM"]
 
 [project.urls]
 "Homepage" = "https://github.com/lpm0073/edx-oauth2-wordpress-backend"
