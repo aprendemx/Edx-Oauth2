@@ -259,7 +259,7 @@ class NEMOpenEdxOAuth2(BaseOAuth2):
             "id": int(response.get("id",0)),
             "username": response.get("email", ""),
             "email": response.get("email", ""),
-            "first_name": str(response.get("name")),
+            "first_name": str(response.get("first_name")),
             "last_name": str(response.get("last_name")),
             "refresh_token": response.get("refresh_token", ""),
             "scope": response.get("scope", ""),
