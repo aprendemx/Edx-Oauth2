@@ -3,25 +3,34 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta:__legacy__"
 
 [project]
-name = "edx-oauth2-nem"
-version = "1.0.22"
+name = "edx-oauth2-llavemx"
+version = "2.0.0"
 authors = [
-  { name="Lawrence McDaniel", email="lpm0073@gmail.com" },
+  { name="AprendeMX Team", email="contacto@aprendemx.mx" },
 ]
-description = "An Open edX Python Social Auth backend for NemD"
+description = "An Open edX Python Social Auth backend for Llave MX (Mexican Government Digital Identity) with OAuth2 + PKCE"
 readme = "README.rst"
 requires-python = ">=3.7"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Framework :: Django",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "social-auth-core==4.3.0",
-  "social-auth-app-django==5.0.0"
+  "social-auth-core>=4.3.0",
+  "social-auth-app-django>=5.0.0"
 ]
-keywords = ["Open edX", "oauth", "NEM"]
+keywords = ["Open edX", "oauth", "oauth2", "pkce", "Llave MX", "Mexican Government", "digital identity"]
 
 [project.urls]
-"Homepage" = "https://github.com/lpm0073/edx-oauth2-wordpress-backend"
-"Bug Tracker" = "https://github.com/lpm0073/edx-oauth2-wordpress-backend/issues"
+"Homepage" = "https://github.com/aprendemx/Edx-Oauth2"
+"Bug Tracker" = "https://github.com/aprendemx/Edx-Oauth2/issues"
+"Llave MX" = "https://www.gob.mx/llavemx"

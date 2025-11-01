@@ -1,0 +1,4 @@
+{
+  "error": "invalid_grant",
+  "error_description": "El código de autorización ha expirado o es inválido. Los códigos expiran en aproximadamente 1 minuto."
+}
