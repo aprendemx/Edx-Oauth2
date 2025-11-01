@@ -1,0 +1,17 @@
+name: oauth2_llavemx
+version: 2.0.0
+patches:
+      openedx-common-settings: |
+        ADDL_INSTALLED_APPS: ["oauth2_llavemx"]
+        THIRD_PARTY_AUTH_BACKENDS: [
+          "oauth2_llavemx.llavemx_oauth.LlaveMXOAuth2",
+          "social_core.backends.google.GoogleOAuth2"
+        ]
+      lms-env: |
+        THIRD_PARTY_AUTH_BACKENDS: [
+          "oauth2_llavemx.llavemx_oauth.LlaveMXOAuth2",
+          "social_core.backends.google.GoogleOAuth2"
+        ]
+      common-env-features: |
+        ENABLE_THIRD_PARTY_AUTH: true
+        ENABLE_REQUIRE_THIRD_PARTY_AUTH: true

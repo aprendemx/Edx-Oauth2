@@ -1,0 +1,4 @@
+{
+  "error": "invalid_client",
+  "error_description": "El clientId o clientSecret son incorrectos o la aplicación no está autorizada."
+}

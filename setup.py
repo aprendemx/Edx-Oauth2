@@ -20,7 +20,7 @@ def load_readme():
 def load_about():
     about = {}
     with io.open(
-        os.path.join(HERE, "oauth2_nem", "__about__.py"),
+        os.path.join(HERE, "oauth2_llavemx", "__about__.py"),
         "rt",
         encoding="utf-8",
     ) as f:
@@ -65,30 +65,38 @@ ABOUT = load_about()
 VERSION = ABOUT["__version__"]
 
 setup(
-    name="edx-oauth2-nem",
+    name="edx-oauth2-llavemx",
     version=VERSION,
     description=(
-        "An OAuth backend for the Nueva Escuela Mexicana Digital, "
-        "that is customized for use in Open edX installations."
+        "An OAuth2 + PKCE backend for Llave MX (Mexican Government Digital Identity), "
+        "customized for use in Open edX installations."
     ),
     long_description=README,
-    author="Lawrence McDaniel, lpm0073@gmail.com",
-    author_email="lpm0073@gmail.com",
-    url="https://github.com/StepwiseMath/edx-oauth2-wordpress-backend",
+    author="AprendeMX Team",
+    author_email="contacto@aprendemx.mx",
+    url="https://github.com/aprendemx/Edx-Oauth2",
     project_urls={
-        "Code": "https://github.com/StepwiseMath/edx-oauth2-wordpress-backend",
-        "Issue tracker": "https://github.com/StepwiseMath/edx-oauth2-wordpress-backend/issues",
-        "Community": "https://stepwisemath.ai",
+        "Code": "https://github.com/aprendemx/Edx-Oauth2",
+        "Issue tracker": "https://github.com/aprendemx/Edx-Oauth2/issues",
+        "Llave MX": "https://www.gob.mx/llavemx",
     },
     packages=find_packages(),
     include_package_data=True,
     package_data={"": ["*.html"]},  # include any templates found in this repo.
     zip_safe=False,
-    keywords="Open edX, oauth, custom nemd, nueva escuela mexicana digital",
+    keywords="Open edX, oauth, oauth2, pkce, llave mx, mexican government, digital identity",
     python_requires=">=3.7",
     install_requires=load_requirements("requirements/stable-psa.txt"),
     classifiers=[
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Framework :: Django",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
 )
