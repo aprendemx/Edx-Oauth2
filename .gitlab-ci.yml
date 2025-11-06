@@ -7,10 +7,10 @@ stages:
 deploy_prod:
   stage: deploy
   script:
-    - sudo cp -r * $TUTOR_DIR/edx-oauth2-nem
+    - sudo cp -r * $TUTOR_DIR/edx-oauth2-llavemx
     - source $TUTOR_DIR/venv/bin/activate
     - cd $TUTOR_DIR
-    - sudo pip install -e ./edx-oauth2-nem
+    - sudo pip install -e ./edx-oauth2-llavemx
     - sudo tutor images build openedx
     - sudo tutor local start -d
   tags:

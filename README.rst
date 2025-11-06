@@ -1,232 +1,421 @@
-Open edX OAuth2 Backend for Wordpress
-=====================================
-.. image:: https://img.shields.io/static/v1?label=pypi&style=flat-square&color=0475b6&message=edx-oauth2-wordpress-backend
-  :alt: PyPi edx-oauth2-nemd
-  :target: https://pypi.org/project/edx-oauth2-wordpress-backend/
+Open edX OAuth2 Backend for Llave MXOpen edX OAuth2 Backend for Llave MX
 
-.. image:: https://img.shields.io/badge/hack.d-Lawrence%20McDaniel-orange.svg
-  :target: https://lawrencemcdaniel.com
-  :alt: Hack.d Lawrence McDaniel
-
-.. image:: https://img.shields.io/static/v1?logo=discourse&label=Discussions&style=flat-square&color=ff0080&message=OpenEdx
-  :alt: Open edX Discussions
-  :target: https://discuss.openedx.org/
-
-.. image:: https://img.shields.io/static/v1?label=WP-Oauth&style=flat-square&color=1054ff&message=Server
-  :alt: Oauth
-  :target: https://wp-oauth.com/
-
-|
+==========================================================================
 
 
-Overview
+
+.. image:: https://img.shields.io/static/v1?logo=discourse&label=Discussions&style=flat-square&color=ff0080&message=OpenEdx.. image:: https://img.shields.io/static/v1?logo=discourse&label=Discussions&style=flat-square&color=ff0080&message=OpenEdx
+
+  :alt: Open edX Discussions  :alt: Open edX Discussions
+
+  :target: https://discuss.openedx.org/  :target: https://discuss.openedx.org/
+
+
+
+||
+
+
+
+
+
+OverviewOverview
+
+----------------
+
+
+
+An Open edX OAuth2 backend for `Llave MX <https://www.gob.mx/llavemx>`_, the Mexican Government's digital identity platform.An Open edX OAuth2 backend for `Llave MX <https://www.gob.mx/llavemx>`_, the Mexican Government's digital identity platform.
+
+
+
+This package provides secure government authentication integration with Open edX using OAuth 2.0 + PKCE (Proof Key for Code Exchange).- `Python Social Auth custom backend implementation <https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html>`_
+
+- OAuth 2.0 with PKCE (Proof Key for Code Exchange) RFC 7636
+
+- `Python Social Auth custom backend implementation <https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html>`_- CURP-based user authentication and registration
+
+- OAuth 2.0 with PKCE (RFC 7636)
+
+- CURP-based user authentication and registrationThis is a secure implementation that integrates Llave MX government digital identity authentication with Open edX.
+
+It includes comprehensive logging, PKCE security, and supports both Mexican nationals and foreign residents.
+
+
+
+Features
+
+--------Features
+
 --------
 
-An Open edX oauth2 backend for `Wordpress <https://wordpress.org//>`_ `WP OAuth Server <https://wp-oauth.com/>`_.
+- **OAuth 2.0 + PKCE**: Full implementation with SHA256 code challenge
 
-- `Python Social Auth custom backend implentation <https://python-social-auth.readthedocs.io/en/latest/backends/implementation.html>`_
-- `WP Oauth Wordpress Plugin Documentation <https://wp-oauth.com/docs/>`_
+- **Government Authentication**: Integration with Mexican government digital identity (Llave MX)- **OAuth 2.0 + PKCE**: Full implementation with SHA256 code challenge
 
-This is a strongly-typed implementation that leverages an in-depth knowledge of the WP Oauth return objects
-to generate verbose, informative log data in `lms.log <./doc/lms.log>`_ that will help you to quickly get third party authentication
-working on your Open edX installation.
+- **CURP Support**: Uses CURP (Clave Única de Registro de Población) as username- **Government Authentication**: Integration with Mexican government digital identity (Llave MX)
+
+- **User Types**: Supports Mexican nationals, foreign residents, and unverified users- **CURP Support**: Uses CURP (Clave Única de Registro de Población) as username
+
+- **Security**: PKCE mandatory, HTTPS enforcement, 15-minute token expiration- **User Types**: Supports Mexican nationals, foreign residents, and unverified users
+
+- **Comprehensive Logging**: Detailed logs for debugging (with PII protection)- **Security**: PKCE mandatory, HTTPS enforcement, 15-minute token expiration
+
+- **Comprehensive Logging**: Detailed logs for debugging (with PII protection)
 
 
-Usage
------
 
-An example implementation for an Open edX installation named https://stepwisemath.ai/
+Installation
 
-1. add this package to your project's requiremets
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------Installation
 
-add this package to your project's requiremets.txt, or install it from the command line.
+------------
+
+1. Install the package
+
+~~~~~~~~~~~~~~~~~~~~~~1. Install the package
+
+~~~~~~~~~~~~~~~~~~~~~~
+
+Add to your requirements.txt or install from the command line:
+
+Add to your requirements.txt or install from the command line:
 
 ..  code-block:: shell
 
-  pip install ./edx-oauth2-nem
+..  code-block:: shell
 
-2. subclass WPOpenEdxOAuth2
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  pip install git+https://github.com/aprendemx/Edx-Oauth2.git
 
-Subclass oauth2_wordpress.wp_oauth.WPOpenEdxOAuth2, and configure for your Wordpress oauth provider.
-
-..  code-block:: python
-
-  from oauth2_nem.nem_oauth import NEMOpenEdxOAuth2
+  pip install git+https://github.com/aprendemx/Edx-Oauth2.git
 
 
-  class StepwiseMathWPOAuth2(NEMOpenEdxOAuth2):
 
-      # This defines the backend name and identifies it during the auth process.
-      # The name is used in the URLs /login/<backend name> and /complete/<backend name>.
-      #
-      # This is the string value that will appear in the LMS Django Admin
-      # Third Party Authentication / Provider Configuration (OAuth)
-      # setup page drop-down box titled, "Backend name:", just above
-      # the "Client ID:" and "Client Secret:" fields.
-      name = "stepwisemath-oauth"
+2. Configure Open edX with Tutor
 
-      # note: no slash at the end of the base url. Python Social Auth
-      # might clean this up for you, but i'm not 100% certain of that.
-      #
-      # the following will create an authorization url of https://stepwisemath.ai/wp-json/moserver/authorize
-      BASE_URL = "https://stepwisemath.ai"
-      PATH = "wp-json/moserver/"
-      AUTHORIZATION_ENDPOINT = "authorize"
-      TOKEN_ENDPOINT = "token"
-      USERINFO_ENDPOINT = "resource"
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2. Configure Open edX with Tutor
 
-
-3. configure your Open edX lms application
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-..  code-block:: yaml
-
-  ADDL_INSTALLED_APPS:
-  - "oauth2_nem"
-  THIRD_PARTY_AUTH_BACKENDS:
-  - "oauth2_nem.nem_oauth.NEMOpenEdxOAuth2"
-  ENABLE_REQUIRE_THIRD_PARTY_AUTH: true
-
-4. setup edx with tutor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: shell
-     tutor config save --append ADDL_INSTALLED_APPS="oauth2_nem"
-     tutor config save --append THIRD_PARTY_AUTH_BACKENDS="oauth2_nem.nem_oauth.NEMOpenEdxOAuth2"
-     tutor config save --append THIRD_PARTY_AUTH_BACKENDS="social_core.backends.google.GoogleOAuth2"
-     tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="git+https://gitlab.com/mexicox/edx-oauth2-nem.git"
-     tutor images build openedx
 
-add these settings to django.conf:
+.. code-block:: shell
 
-.. list-table:: WP Oauth setup
-  :widths: 50 100
-  :header-rows: 1
+     tutor config save --append ADDL_INSTALLED_APPS="oauth2_llavemx"
 
-  * - Key
-    - Value
-  * - WPOAUTH_BACKEND_BASE_URL
-    - https://stepwisemath.ai
-  * - WPOAUTH_BACKEND_CLIENT_ID
-    - see: https://stepwisemath.ai/wp-admin/admin.php?page=mo_oauth_server_settings
-  * - WPOAUTH_BACKEND_CLIENT_SECRET
-    - see: https://stepwisemath.ai/wp-admin/admin.php?page=mo_oauth_server_settings
-  * - SCOPE
-    - basic email profile
-  * - GRANT_TYPE
-    - Authorization Code
-  * - REDIRECT_URI
-    - https://web.stepwisemath.ai/auth/complete/stepwisemath-oauth
+     tutor config save --append THIRD_PARTY_AUTH_BACKENDS="oauth2_llavemx.llavemx_oauth.LlaveMXOAuth2"     tutor config save --append ADDL_INSTALLED_APPS="oauth2_llavemx"
 
-4. Configure a new Oauth2 client from the lms Django Admin console
+     tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="git+https://github.com/aprendemx/Edx-Oauth2.git"     tutor config save --append THIRD_PARTY_AUTH_BACKENDS="oauth2_llavemx.llavemx_oauth.LlaveMXOAuth2"
+
+     tutor images build openedx     tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="git+https://github.com/aprendemx/Edx-Oauth2.git"
+
+     tutor local restart     tutor images build openedx
+
+
+
+
+
+3. Django Settings Configuration3. Django Settings Configuration
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. image:: https://raw.githubusercontent.com/lpm0073/edx-oauth2-wordpress-backend/main/doc/django-admin-1.png
-  :width: 100%
+
+
+Add to your Open edX Django settings:Add to your Open edX Django settings:
+
+
+
+..  code-block:: yaml..  code-block:: yaml
+
+
+
+  ADDL_INSTALLED_APPS:  ADDL_INSTALLED_APPS:
+
+  - "oauth2_llavemx"  - "oauth2_llavemx"
+
+    
+
+  THIRD_PARTY_AUTH_BACKENDS:  THIRD_PARTY_AUTH_BACKENDS:
+
+  - "oauth2_llavemx.llavemx_oauth.LlaveMXOAuth2"  - "oauth2_llavemx.llavemx_oauth.LlaveMXOAuth2"
+
+    
+
+  ENABLE_REQUIRE_THIRD_PARTY_AUTH: true  ENABLE_REQUIRE_THIRD_PARTY_AUTH: true
+
+
+
+
+
+4. LMS Admin Configuration4. LMS Admin Configuration
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Configure in Django Admin → Third Party Authentication → Provider Configuration (OAuth):Configure in Django Admin → Third Party Authentication → Provider Configuration (OAuth):
+
+
+
+.. list-table:: Llave MX OAuth Setup.. list-table:: Llave MX OAuth Setup
+
+  :widths: 50 100  :widths: 50 100
+
+  :header-rows: 1  :header-rows: 1
+
+
+
+  * - Key  * - Key
+
+    - Value    - Value
+
+  * - Backend name  * - Backend name
+
+    - llavemx-oauth    - llavemx-oauth
+
+  * - Client ID  * - Client ID
+
+    - (Provided by Llave MX)    - (Provided by Llave MX)
+
+  * - Client Secret  * - Client Secret
+
+    - (Provided by Llave MX)    - (Provided by Llave MX)
+
+  * - Enabled  * - Authorization URL
+
+    - ✓ (checked)    - https://val-llave.infotec.mx/oauth.xhtml (testing) or https://llavemx.gob.mx/oauth.xhtml (production)
+
+  * - Skip registration form  * - Access Token URL
+
+    - ✓ (optional)    - https://val-api-llave.infotec.mx/ws/rest/apps/oauth/obtenerToken (testing)
+
+  * - Skip email verification  *   * - User API URL
+
+    - ✓ (optional)    - https://val-api-llave.infotec.mx/ws/rest/apps/oauth/datosUsuario (testing)
+
+
+
+
+
+Llave MX EnvironmentsSecurity Features
+
+---------------------    - https://web.stepwisemath.ai/auth/complete/stepwisemath-oauth
+
+
+
+Testing Environment (val-llave)4. Configure a new Oauth2 client from the lms Django Admin console
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+- Authorization URL: ``https://val-llave.infotec.mx/oauth.xhtml``.. image:: https://raw.githubusercontent.com/lpm0073/edx-oauth2-wordpress-backend/main/doc/django-admin-1.png
+
+- Access Token URL: ``https://val-api-llave.infotec.mx/ws/rest/apps/oauth/obtenerToken``  :width: 100%
+
+- User Data URL: ``https://val-api-llave.infotec.mx/ws/rest/apps/oauth/datosUsuario``  :alt: Open edX Django Admin Add Provider Configuration (OAuth)
+
+
+
+Production Environment.. image:: https://raw.githubusercontent.com/lpm0073/edx-oauth2-wordpress-backend/main/doc/django-admin-2.png
+
+~~~~~~~~~~~~~~~~~~~~~~  :width: 100%
+
   :alt: Open edX Django Admin Add Provider Configuration (OAuth)
 
-.. image:: https://raw.githubusercontent.com/lpm0073/edx-oauth2-wordpress-backend/main/doc/django-admin-2.png
-  :width: 100%
-  :alt: Open edX Django Admin Add Provider Configuration (OAuth)
+- Authorization URL: ``https://llavemx.gob.mx/oauth.xhtml``
+
+- Access Token URL: ``https://api-llave.gob.mx/ws/rest/apps/oauth/obtenerToken``
+
+- User Data URL: ``https://api-llave.gob.mx/ws/rest/apps/oauth/datosUsuario``Cookiecutter openedx_devops deployment
 
 
-Cookiecutter openedx_devops deployment
 
 ..  code-block:: shell
 
-  tutor config save --set OPENEDX_WPOAUTH_BACKEND_BASE_URL="${{ secrets.WPOAUTH_BACKEND_BASE_URL }}" \
+Security Features
+
+-----------------  tutor config save --set OPENEDX_WPOAUTH_BACKEND_BASE_URL="${{ secrets.WPOAUTH_BACKEND_BASE_URL }}" \
+
                     --set OPENEDX_WPOAUTH_BACKEND_CLIENT_ID="${{ secrets.WPOAUTH_BACKEND_CLIENT_ID }}" \
-                    --set OPENEDX_WPOAUTH_BACKEND_CLIENT_SECRET="${{ secrets.WPOAUTH_BACKEND_CLIENT_SECRET }}"
 
-WP Oauth Plugin Configuration
------------------------------
+- **PKCE (RFC 7636)**: Mandatory code challenge with SHA256                    --set OPENEDX_WPOAUTH_BACKEND_CLIENT_SECRET="${{ secrets.WPOAUTH_BACKEND_CLIENT_SECRET }}"
 
-This plugin enables your Open edX installation to authenticate against the WP Oauth plugin provider
+- **HTTPS Only**: All communications encrypted
+
+- **Token Expiration**: 15-minute access token lifetimeWP Oauth Plugin Configuration
+
+- **PII Protection**: CURP and phone numbers excluded from standard logs-----------------------------
+
+- **State Parameter**: CSRF protection enabled
+
+- **Input Validation**: Comprehensive validation of all Llave MX responsesThis plugin enables your Open edX installation to authenticate against the WP Oauth plugin provider
+
 in your Wordpress web site, configured as follows:
 
-.. image:: https://raw.githubusercontent.com/lpm0073/edx-oauth2-wordpress-backend/main/doc/wp-oauth-config.png
-  :width: 100%
+
+
+Architecture.. image:: https://raw.githubusercontent.com/lpm0073/edx-oauth2-wordpress-backend/main/doc/wp-oauth-config.png
+
+------------  :width: 100%
+
   :alt: WP OAuth Server configuration page
 
-Sample lms log output
+OAuth 2.0 Flow
+
+~~~~~~~~~~~~~~Sample lms log output
+
 ---------------------
 
+1. **User initiates login**: User clicks "Login with Llave MX"
 
-..  code-block:: shell
+2. **PKCE generation**: System generates code verifier and challenge
 
-    2022-10-06 20:17:08,832 INFO 19 [tracking] [user None] [ip 192.168.6.26] logger.py:41 - {"name": "/auth/login/stepwisemath-oauth/", "context": {"user_id": null, "path": "/auth/login/stepwisemath-oauth/", "course_id": "", "org_id": "", "enterprise_uuid": ""}, "username": "", "session": "a3f4ac2a5bf97f717f5745984059891b", "ip": "192.168.6.26", "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36", "host": "web.stepwisemath.ai", "referer": "https://web.stepwisemath.ai/login", "accept_language": "en-US,en;q=0.9,es-MX;q=0.8,es-US;q=0.7,es;q=0.6", "event": "{\"GET\": {\"auth_entry\": [\"login\"], \"next\": [\"/dashboard\"]}, \"POST\": {}}", "time": "2022-10-06T20:17:08.832684+00:00", "event_type": "/auth/login/stepwisemath-oauth/", "event_source": "server", "page": null}
-    2022-10-06 20:17:09,230 INFO 19 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:216 - AUTHORIZATION_URL: https://stepwisemath.ai/oauth/authorize
-    [pid: 19|app: 0|req: 2/19] 192.168.4.4 () {68 vars in 1889 bytes} [Thu Oct  6 20:17:08 2022] GET /auth/login/stepwisemath-oauth/?auth_entry=login&next=%2Fdashboard => generated 0 bytes in 430 msecs (HTTP/1.1 302) 9 headers in 922 bytes (1 switches on core 0)
-    2022-10-06 20:17:38,485 INFO 7 [tracking] [user None] [ip 192.168.6.26] logger.py:41 - {"name": "/auth/complete/stepwisemath-oauth/", "context": {"user_id": null, "path": "/auth/complete/stepwisemath-oauth/", "course_id": "", "org_id": "", "enterprise_uuid": ""}, "username": "", "session": "a3f4ac2a5bf97f717f5745984059891b", "ip": "192.168.6.26", "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36", "host": "web.stepwisemath.ai", "referer": "https://stepwisemath.ai/", "accept_language": "en-US,en;q=0.9,es-MX;q=0.8,es-US;q=0.7,es;q=0.6", "event": "{\"GET\": {\"redirect_state\": [\"pdbIKIcEbhjVr3Kon5VXUWWiy5kuX921\"], \"code\": [\"q0antmap4qfamd6pe24jh75pdprahpdiyitmut0o\"], \"state\": [\"pdbIKIcEbhjVr3Kon5VXUWWiy5kuX921\"], \"iframe\": [\"break\"]}, \"POST\": {}}", "time": "2022-10-06T20:17:38.484675+00:00", "event_type": "/auth/complete/stepwisemath-oauth/", "event_source": "server", "page": null}
+3. **Authorization request**: User redirected to Llave MX with challenge..  code-block:: shell
+
+4. **User authenticates**: User logs in with government credentials
+
+5. **Authorization code**: Llave MX returns code to callback URL    2022-10-06 20:17:08,832 INFO 19 [tracking] [user None] [ip 192.168.6.26] logger.py:41 - {"name": "/auth/login/stepwisemath-oauth/", "context": {"user_id": null, "path": "/auth/login/stepwisemath-oauth/", "course_id": "", "org_id": "", "enterprise_uuid": ""}, "username": "", "session": "a3f4ac2a5bf97f717f5745984059891b", "ip": "192.168.6.26", "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36", "host": "web.stepwisemath.ai", "referer": "https://web.stepwisemath.ai/login", "accept_language": "en-US,en;q=0.9,es-MX;q=0.8,es-US;q=0.7,es;q=0.6", "event": "{\"GET\": {\"auth_entry\": [\"login\"], \"next\": [\"/dashboard\"]}, \"POST\": {}}", "time": "2022-10-06T20:17:08.832684+00:00", "event_type": "/auth/login/stepwisemath-oauth/", "event_source": "server", "page": null}
+
+6. **Token exchange**: Backend exchanges code + verifier for access token    2022-10-06 20:17:09,230 INFO 19 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:216 - AUTHORIZATION_URL: https://stepwisemath.ai/oauth/authorize
+
+7. **User data retrieval**: Backend fetches user data with access token    [pid: 19|app: 0|req: 2/19] 192.168.4.4 () {68 vars in 1889 bytes} [Thu Oct  6 20:17:08 2022] GET /auth/login/stepwisemath-oauth/?auth_entry=login&next=%2Fdashboard => generated 0 bytes in 430 msecs (HTTP/1.1 302) 9 headers in 922 bytes (1 switches on core 0)
+
+8. **User creation/login**: Open edX creates or logs in user with CURP    2022-10-06 20:17:38,485 INFO 7 [tracking] [user None] [ip 192.168.6.26] logger.py:41 - {"name": "/auth/complete/stepwisemath-oauth/", "context": {"user_id": null, "path": "/auth/complete/stepwisemath-oauth/", "course_id": "", "org_id": "", "enterprise_uuid": ""}, "username": "", "session": "a3f4ac2a5bf97f717f5745984059891b", "ip": "192.168.6.26", "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36", "host": "web.stepwisemath.ai", "referer": "https://stepwisemath.ai/", "accept_language": "en-US,en;q=0.9,es-MX;q=0.8,es-US;q=0.7,es;q=0.6", "event": "{\"GET\": {\"redirect_state\": [\"pdbIKIcEbhjVr3Kon5VXUWWiy5kuX921\"], \"code\": [\"q0antmap4qfamd6pe24jh75pdprahpdiyitmut0o\"], \"state\": [\"pdbIKIcEbhjVr3Kon5VXUWWiy5kuX921\"], \"iframe\": [\"break\"]}, \"POST\": {}}", "time": "2022-10-06T20:17:38.484675+00:00", "event_type": "/auth/complete/stepwisemath-oauth/", "event_source": "server", "page": null}
+
     2022-10-06 20:17:38,496 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:223 - ACCESS_TOKEN_URL: https://stepwisemath.ai/oauth/token
+
     2022-10-06 20:17:40,197 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:230 - USER_QUERY: https://stepwisemath.ai/oauth/me
-    2022-10-06 20:17:40,197 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:363 - user_data() url: https://stepwisemath.ai/oauth/me?access_token=jx2zql9fw2jx9s7tayik4ybfjrmuhb7m5csb1mtl
-    2022-10-06 20:17:41,965 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:368 - user_data() response: {
+
+User Data Mapping    2022-10-06 20:17:40,197 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:363 - user_data() url: https://stepwisemath.ai/oauth/me?access_token=jx2zql9fw2jx9s7tayik4ybfjrmuhb7m5csb1mtl
+
+~~~~~~~~~~~~~~~~~    2022-10-06 20:17:41,965 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:368 - user_data() response: {
+
         "ID": "7",
-        "display_name": "Test McBugster",
-        "user_email": "test@stepwisemath.ai",
-        "user_login": "testaccount",
+
+.. list-table:: Llave MX to Open edX Field Mapping        "display_name": "Test McBugster",
+
+  :widths: 40 40 20        "user_email": "test@stepwisemath.ai",
+
+  :header-rows: 1        "user_login": "testaccount",
+
         "user_nicename": "testaccount",
-        "user_registered": "2022-10-06 19:57:56",
-        "user_roles": [
-            "administrator"
-        ],
-        "user_status": "0"
-    }
-    2022-10-06 20:17:41,966 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:269 - get_user_details() received wp-oauth user data response json dict: {
-        "ID": "7",
-        "display_name": "Test McBugster",
-        "user_email": "test@stepwisemath.ai",
-        "user_login": "testaccount",
-        "user_nicename": "testaccount",
-        "user_registered": "2022-10-06 19:57:56",
-        "user_roles": [
-            "administrator"
-        ],
-        "user_status": "0"
-    }
-    2022-10-06 20:17:41,966 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:317 - get_user_details() processing response object
-    2022-10-06 20:17:41,966 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:241 - user_details.setter: new value set {
-        "date_joined": "2022-10-06 19:57:56",
-        "email": "test@stepwisemath.ai",
-        "first_name": "Test",
-        "fullname": "Test McBugster",
+
+  * - Llave MX Field        "user_registered": "2022-10-06 19:57:56",
+
+    - Open edX Field        "user_roles": [
+
+    - Required            "administrator"
+
+  * - curp        ],
+
+    - username        "user_status": "0"
+
+    - ✓    }
+
+  * - email    2022-10-06 20:17:41,966 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:269 - get_user_details() received wp-oauth user data response json dict: {
+
+    - email        "ID": "7",
+
+    - ✓        "display_name": "Test McBugster",
+
+  * - nombre        "user_email": "test@stepwisemath.ai",
+
+    - first_name        "user_login": "testaccount",
+
+    - ✓        "user_nicename": "testaccount",
+
+  * - primerApellido        "user_registered": "2022-10-06 19:57:56",
+
+    - last_name        "user_roles": [
+
+    - ✓            "administrator"
+
+  * - segundoApellido        ],
+
+    - last_name (appended)        "user_status": "0"
+
+    -     }
+
+  * - fechaNacimiento    2022-10-06 20:17:41,966 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:317 - get_user_details() processing response object
+
+    - profile.year_of_birth    2022-10-06 20:17:41,966 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:241 - user_details.setter: new value set {
+
+    -         "date_joined": "2022-10-06 19:57:56",
+
+  * - telefono        "email": "test@stepwisemath.ai",
+
+    - profile.phone_number        "first_name": "Test",
+
+    -         "fullname": "Test McBugster",
+
         "id": 7,
+
         "is_staff": true,
-        "is_superuser": true,
-        "last_name": "McBugster",
+
+Testing        "is_superuser": true,
+
+-------        "last_name": "McBugster",
+
         "refresh_token": "",
-        "scope": "",
+
+Run the test suite:        "scope": "",
+
         "token_type": "",
-        "user_status": "0",
+
+..  code-block:: shell        "user_status": "0",
+
         "username": "testaccount"
-    }
-    2022-10-06 20:17:41,967 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:345 - get_user_details() returning: {
+
+  cd /Users/diegonicolas/Desktop/oauth/Edx-Oauth2    }
+
+  python -m pytest tests/test_llavemx.py -v    2022-10-06 20:17:41,967 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:345 - get_user_details() returning: {
+
         "date_joined": "2022-10-06 19:57:56",
+
         "email": "test@stepwisemath.ai",
-        "first_name": "Test",
-        "fullname": "Test McBugster",
+
+Documentation        "first_name": "Test",
+
+-------------        "fullname": "Test McBugster",
+
         "id": 7,
-        "is_staff": true,
+
+For detailed documentation, see:        "is_staff": true,
+
         "is_superuser": true,
-        "last_name": "McBugster",
-        "refresh_token": "",
-        "scope": "",
+
+- `README_LLAVEMX.rst <./README_LLAVEMX.rst>`_ - Complete implementation guide        "last_name": "McBugster",
+
+- `TESTING.md <./TESTING.md>`_ - Testing instructions        "refresh_token": "",
+
+- `CHANGELOG_LLAVEMX.md <./CHANGELOG_LLAVEMX.md>`_ - Version history        "scope": "",
+
         "token_type": "",
+
         "user_status": "0",
-        "username": "testaccount"
-    }
+
+Support        "username": "testaccount"
+
+-------    }
+
     2022-10-06 20:17:41,972 INFO 7 [oauth2_wordpress.wp_oauth] [user None] [ip 192.168.6.26] wp_oauth.py:269 - get_user_details() received extended get_user_details() return dict: {
-        "access_token": "jx2zql9fw2jx9s7tayik4ybfjrmuhb7m5csb1mtl",
-        "date_joined": "2022-10-06 19:57:56",
+
+- `Open edX Discussions <https://discuss.openedx.org/>`_        "access_token": "jx2zql9fw2jx9s7tayik4ybfjrmuhb7m5csb1mtl",
+
+- `GitHub Issues <https://github.com/aprendemx/Edx-Oauth2/issues>`_        "date_joined": "2022-10-06 19:57:56",
+
         "email": "test@stepwisemath.ai",
+
         "expires_in": 3600,
-        "first_name": "Test",
-        "fullname": "Test McBugster",
+
+License        "first_name": "Test",
+
+-------        "fullname": "Test McBugster",
+
         "id": 7,
-        "is_staff": true,
+
+Licensed under the terms of the `GNU Affero General Public License (AGPL) <./LICENSE.txt>`_.        "is_staff": true,
+
         "is_superuser": true,
         "last_name": "McBugster",
         "refresh_token": "",
