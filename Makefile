@@ -13,7 +13,7 @@ build:
 
 	if [ -d "./build" ]; then sudo rm -r build; fi
 	if [ -d "./dist" ]; then sudo rm -r dist; fi
-	if [ -d "./edx_oauth2_nem.egg-info" ]; then sudo rm -r edx_oauth2_nem.egg-info; fi
+	if [ -d "./edx_oauth2_llavemx.egg-info" ]; then sudo rm -r edx_oauth2_llavemx.egg-info; fi
 
 	python3 -m build --sdist ./
 	python3 -m build --wheel ./

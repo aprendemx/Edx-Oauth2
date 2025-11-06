@@ -52,12 +52,6 @@ pytest tests/test_llavemx.py::TestLlaveMXValidation -v
 pytest tests/test_llavemx.py::TestLlaveMXValidation::test_is_valid_llavemx_response -v
 ```
 
-### Option 3: Run old NEM tests (for compatibility)
-
-```bash
-python tests/tests.py
-```
-
 ## Expected Output
 
 ### Success Output

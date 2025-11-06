@@ -477,4 +477,4 @@ Authors
 -------
 
 - AprendeMX Team
-- Based on NEM OAuth2 backend structure
+- OAuth2 + PKCE implementation for Llave MX

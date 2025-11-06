@@ -1,8 +1,8 @@
 """
-written by:     Based on NEM OAuth2 backend
-                Adapted for Llave MX (Mexican Government Digital Identity)
+written by:     AprendeMX Team
+                OAuth2 + PKCE backend for Llave MX (Mexican Government Digital Identity)
 
-date:           oct-2025
+date:           nov-2025
 
 usage:          OAuth2 backend for Llave MX integration with Open edX.
                 Handles authentication with PKCE, custom JSON POST for tokens,
