@@ -22,10 +22,8 @@ from urllib.request import urlopen, Request
 from logging import getLogger
 from social_core.backends.oauth import BaseOAuth2
 from social_core.exceptions import AuthFailed, AuthCanceled, AuthUnknownError
-from django.contrib.auth import get_user_model
 
 
-User = get_user_model()
 logger = getLogger(__name__)
 
 VERBOSE_LOGGING = True
