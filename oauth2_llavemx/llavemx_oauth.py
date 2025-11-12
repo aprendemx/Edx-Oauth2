@@ -414,6 +414,11 @@ class LlaveMXOAuth2(BaseOAuth2):
             part for part in [primer_apellido, segundo_apellido] if part
         ).strip()
         
+        # Combine full name for frontend "name" field (required for auto-registration)
+        full_name = " ".join(
+            part for part in [first_name, primer_apellido, segundo_apellido] if part
+        ).strip()
+        
         # Extract domicilio (address) data
         domicilio = response.get("domicilio", {})
         municipio = domicilio.get("alcaldiaMunicipio", "") if domicilio else ""
@@ -429,6 +434,7 @@ class LlaveMXOAuth2(BaseOAuth2):
             "id": response.get("idUsuario", ""),  # Usar idUsuario en vez de id
             "username": curp,  # CURP as username (unique in Mexico)
             "email": email,
+            "name": full_name,  # Required by frontend for auto-registration
             "first_name": first_name,
             "last_name": last_name,
             
