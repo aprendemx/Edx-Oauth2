@@ -378,13 +378,16 @@ class LlaveMXOAuth2(BaseOAuth2):
 
     def get_user_details(self, response):
         """
-        Map Llave MX user data to Open edX user model.
+        Map Llave MX user data to Open edX user model AND MéxicoX custom fields.
         
         Mapping:
         - CURP → username (unique Mexican citizen identifier)
         - correo → email
-        - nombre → first_name
-        - primerApellido + segundoApellido → last_name
+        - nombre → first_name / nombres (MéxicoX custom)
+        - primerApellido → primer_apellido (MéxicoX custom)
+        - segundoApellido → segundo_apellido (MéxicoX custom)
+        - estadoNacimiento → estado (MéxicoX custom)
+        - domicilio.alcaldiaMunicipio → municipio (MéxicoX custom)
         
         Additional data stored in extra_data for profile extensions.
         """
@@ -402,22 +405,42 @@ class LlaveMXOAuth2(BaseOAuth2):
         
         first_name = response.get("nombre", "")
         
-        # Combine apellidos (last names)
+        # Extract apellidos (last names)
         primer_apellido = response.get("primerApellido", "")
         segundo_apellido = response.get("segundoApellido", "")
+        
+        # Combine apellidos for standard last_name field
         last_name = " ".join(
             part for part in [primer_apellido, segundo_apellido] if part
         ).strip()
         
+        # Extract domicilio (address) data
+        domicilio = response.get("domicilio", {})
+        municipio = domicilio.get("alcaldiaMunicipio", "") if domicilio else ""
+        
+        # Extract estado (state)
+        estado_nacimiento = response.get("estadoNacimiento", "")
+        
         # Build user details dict
+        # Includes both standard Open edX fields AND MéxicoX custom fields
         n = datetime.now()
         user_details = {
+            # Standard Open edX fields
             "id": response.get("idUsuario", ""),  # Usar idUsuario en vez de id
             "username": curp,  # CURP as username (unique in Mexico)
             "email": email,
             "first_name": first_name,
             "last_name": last_name,
+            
+            # MéxicoX custom fields (match frontend form field names)
+            "nombres": first_name,  # Frontend expects "nombres" not "first_name"
+            "primer_apellido": primer_apellido,  # Frontend expects separate apellidos
+            "segundo_apellido": segundo_apellido,
             "curp": curp,
+            "estado": estado_nacimiento,  # Frontend expects "estado"
+            "municipio": municipio,  # Frontend expects "municipio"
+            
+            # Additional Llave MX data
             "telefono": response.get("telefono", ""),
             "fechaNacimiento": response.get("fechaNacimiento", ""),
             "sexo": response.get("sexo", ""),
