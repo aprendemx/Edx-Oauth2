@@ -389,8 +389,17 @@ class LlaveMXOAuth2(BaseOAuth2):
         Additional data stored in extra_data for profile extensions.
         """
         # Extract basic fields
+        # Para cuentas básicas sin CURP, usar login (teléfono)
         curp = response.get("curp") or response.get("login", "")
-        email = response.get("correo", "")
+        
+        # Si no hay correo (cuentas básicas), generar uno temporal con el teléfono
+        email = response.get("correo", "").strip()
+        if not email:
+            # Usar teléfono como email temporal
+            phone = response.get("login") or response.get("telVigente", "")
+            if phone:
+                email = f"{phone}@llavemx.temp"
+        
         first_name = response.get("nombre", "")
         
         # Combine apellidos (last names)
@@ -403,7 +412,7 @@ class LlaveMXOAuth2(BaseOAuth2):
         # Build user details dict
         n = datetime.now()
         user_details = {
-            "id": response.get("id", ""),
+            "id": response.get("idUsuario", ""),  # Usar idUsuario en vez de id
             "username": curp,  # CURP as username (unique in Mexico)
             "email": email,
             "first_name": first_name,
@@ -484,8 +493,16 @@ class LlaveMXOAuth2(BaseOAuth2):
     
     def is_valid_llavemx_response(self, response):
         """Validate Llave MX user data response structure."""
-        required_keys = ["id", "correo", "nombre"]
-        return self.is_valid_dict(response, required_keys)
+        # Llave MX usa "idUsuario" en vez de "id"
+        required_keys = ["idUsuario", "nombre"]
+        if not self.is_valid_dict(response, required_keys):
+            return False
+        
+        # Debe tener correo O teléfono (para cuentas básicas sin correo)
+        has_email = response.get("correo") and response.get("correo").strip()
+        has_phone = response.get("login") or response.get("telVigente")
+        
+        return has_email or has_phone
     
     def is_llavemx_error(self, response):
         """Check if response is a Llave MX error."""
