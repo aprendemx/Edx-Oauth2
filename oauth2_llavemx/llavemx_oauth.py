@@ -265,7 +265,7 @@ class LlaveMXOAuth2(BaseOAuth2):
                     for k, v in response_data.items()
                 }
                 logger.info("request_access_token() response: {response}".format(
-                    response=json.dumps(safe_response, indent=2)
+                    response=json.dumps(safe_response, indent=2, ensure_ascii=False)
                 ))
             
             # Map Llave MX response to PSA expected format
@@ -355,7 +355,7 @@ class LlaveMXOAuth2(BaseOAuth2):
                     if k not in ['curp', 'telefono']  # Don't log PII in production
                 }
                 logger.info("user_data() response: {data}".format(
-                    data=json.dumps(safe_data, sort_keys=True, indent=2)
+                    data=json.dumps(safe_data, sort_keys=True, indent=2, ensure_ascii=False)
                 ))
             
             # Validate response structure
@@ -479,7 +479,7 @@ class LlaveMXOAuth2(BaseOAuth2):
                 if k not in ['curp', 'telefono', 'fechaNacimiento', 'refresh_token']
             }
             logger.info("get_user_details() returning: {details}".format(
-                details=json.dumps(safe_details, sort_keys=True, indent=2)
+                details=json.dumps(safe_details, sort_keys=True, indent=2, ensure_ascii=False)
             ))
         
         self._user_details = user_details
@@ -602,7 +602,7 @@ class LlaveMXOAuth2(BaseOAuth2):
             
             if VERBOSE_LOGGING:
                 logger.info("get_user_roles() roles: {roles}".format(
-                    roles=json.dumps(roles_data, indent=2)
+                    roles=json.dumps(roles_data, indent=2, ensure_ascii=False)
                 ))
             
             return roles_data.get("roles", [])
@@ -657,7 +657,7 @@ class LlaveMXOAuth2(BaseOAuth2):
             
             if VERBOSE_LOGGING:
                 logger.info("logout() response: {response}".format(
-                    response=json.dumps(logout_response, indent=2)
+                    response=json.dumps(logout_response, indent=2, ensure_ascii=False)
                 ))
             
             code = logout_response.get("codeResponse")
