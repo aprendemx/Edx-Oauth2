@@ -428,6 +428,7 @@ class LlaveMXOAuth2(BaseOAuth2):
         
         # Build user details dict
         # Includes both standard Open edX fields AND MéxicoX custom fields
+        # ✅ IMPORTANT: Include ALL fields even if empty so frontend can pre-fill form
         n = datetime.now()
         user_details = {
             # Standard Open edX fields
@@ -438,7 +439,7 @@ class LlaveMXOAuth2(BaseOAuth2):
             "first_name": first_name,
             "last_name": last_name,
             
-            # MéxicoX custom fields (match frontend form field names)
+            # MéxicoX custom fields (match frontend form field names EXACTLY)
             "nombres": first_name,  # Frontend expects "nombres" not "first_name"
             "primer_apellido": primer_apellido,  # Frontend expects separate apellidos
             "segundo_apellido": segundo_apellido,
@@ -453,7 +454,22 @@ class LlaveMXOAuth2(BaseOAuth2):
             "correoVerificado": response.get("correoVerificado", False),
             "telefonoVerificado": response.get("telefonoVerificado", False),
             "refresh_token": response.get("refresh_token", ""),
-            "date_joined": str(n.isoformat())
+            "date_joined": str(n.isoformat()),
+            
+            # ✅ Additional empty fields for frontend form (will be filled by user)
+            # These ensure the form has all required field names from the start
+            "pais": "",  # Country (for users outside Mexico)
+            "dni": "",   # ID for users outside Mexico
+            "ocupacion": "",  # Occupation
+            "maximo_nivel": "",  # Maximum education level
+            "eres_docente": False,  # Is teacher?
+            "cct": "",  # School key (if teacher)
+            "funcion": "",  # Teacher role (if teacher)
+            "nivel_Educativo": "",  # Education level teaching (if teacher)
+            "asignatura": "",  # Subject teaching (if teacher)
+            "cuentanos": "",  # Tell us about yourself
+            "tos": False,  # Terms of service
+            "honor_code": False,  # Honor code
         }
         
         if VERBOSE_LOGGING:
