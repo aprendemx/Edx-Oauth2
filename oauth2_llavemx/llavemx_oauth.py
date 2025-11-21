@@ -376,6 +376,19 @@ class LlaveMXOAuth2(BaseOAuth2):
             
             raise AuthUnknownError(self, str(e))
 
+    def get_user_id(self, details, response):
+        """
+        Required by Python Social Auth.
+        Llave MX identifies users by "idUsuario", NOT "id".
+        Must return a stable and unique user identifier.
+        """
+        return str(
+            response.get("idUsuario") or
+            response.get("id") or
+            details.get("id") or
+            details.get("username")
+        )
+
     def get_user_details(self, response):
         """
         Map Llave MX user data to Open edX user model AND MéxicoX custom fields.
