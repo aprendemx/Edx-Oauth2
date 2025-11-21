@@ -380,103 +380,125 @@ class LlaveMXOAuth2(BaseOAuth2):
         """
         Map Llave MX user data to Open edX user model AND MéxicoX custom fields.
         
-        Mapping:
-        - CURP → username (unique Mexican citizen identifier)
-        - correo → email
-        - nombre → first_name / nombres (MéxicoX custom)
-        - primerApellido → primer_apellido (MéxicoX custom)
-        - segundoApellido → segundo_apellido (MéxicoX custom)
-        - estadoNacimiento → estado (MéxicoX custom)
-        - domicilio.alcaldiaMunicipio → municipio (MéxicoX custom)
+        ✅ CLEAN MAPPING - Only return what Llave MX actually provides
         
-        Additional data stored in extra_data for profile extensions.
+        Llave MX provides:
+        - idUsuario → id
+        - curp → username and curp field
+        - correo → email (or generate temporal if missing)
+        - nombre → first_name / nombres
+        - primerApellido → primer_apellido
+        - segundoApellido → segundo_apellido
+        - estadoNacimiento → estado
+        - domicilio.alcaldiaMunicipio → municipio
+        - telefono → telefono
+        - fechaNacimiento → fechaNacimiento
+        - sexo → sexo
+        - correoVerificado → boolean
+        - telefonoVerificado → boolean
+        
+        Fields NOT provided by Llave MX are set to empty strings or false.
+        NO INVENTED DATA. NO MIXED FIELDS.
         """
-        # Extract basic fields
-        # Para cuentas básicas sin CURP, usar login (teléfono)
-        curp = response.get("curp") or response.get("login", "")
+        # ============================================================
+        # EXTRACT RAW DATA FROM LLAVE MX RESPONSE
+        # ============================================================
         
-        # Si no hay correo (cuentas básicas), generar uno temporal con el teléfono
+        # Username: CURP (or login for basic accounts without CURP)
+        curp = response.get("curp", "").strip()
+        login = response.get("login", "").strip()
+        username = curp if curp else login
+        
+        # Email: Use correo, or generate temporal for basic accounts
         email = response.get("correo", "").strip()
-        if not email:
-            # Usar teléfono como email temporal
-            phone = response.get("login") or response.get("telVigente", "")
-            if phone:
-                email = f"{phone}@llavemx.temp"
+        if not email and login:
+            email = f"{login}@llavemx.temp"
         
-        first_name = response.get("nombre", "")
+        # Names exactly as Llave MX provides them
+        nombres = response.get("nombre", "").strip()
+        primer_apellido = response.get("primerApellido", "").strip()
+        segundo_apellido = response.get("segundoApellido", "").strip()
         
-        # Extract apellidos (last names)
-        primer_apellido = response.get("primerApellido", "")
-        segundo_apellido = response.get("segundoApellido", "")
+        # Location data
+        estado = response.get("estadoNacimiento", "").strip()
+        domicilio = response.get("domicilio", {}) or {}
+        municipio = domicilio.get("alcaldiaMunicipio", "").strip() if isinstance(domicilio, dict) else ""
+        
+        # Additional data
+        telefono = response.get("telefono", "").strip()
+        fecha_nacimiento = response.get("fechaNacimiento", "").strip()
+        sexo = response.get("sexo", "").strip()
+        
+        # Verification flags (must be boolean, never None)
+        correo_verificado = bool(response.get("correoVerificado", False))
+        telefono_verificado = bool(response.get("telefonoVerificado", False))
+        
+        # ============================================================
+        # BUILD COMPUTED FIELDS (for Open edX compatibility)
+        # ============================================================
         
         # Combine apellidos for standard last_name field
         last_name = " ".join(
             part for part in [primer_apellido, segundo_apellido] if part
         ).strip()
         
-        # Combine full name for frontend "name" field (required for auto-registration)
+        # Full name for auto-registration
         full_name = " ".join(
-            part for part in [first_name, primer_apellido, segundo_apellido] if part
+            part for part in [nombres, primer_apellido, segundo_apellido] if part
         ).strip()
         
-        # Extract domicilio (address) data
-        domicilio = response.get("domicilio", {})
-        municipio = domicilio.get("alcaldiaMunicipio", "") if domicilio else ""
+        # ============================================================
+        # RETURN CLEAN USER DETAILS
+        # ============================================================
+        # ✅ Only fields that Llave MX provides or that are required by Open edX
+        # ✅ Empty strings for missing text fields
+        # ✅ False for missing boolean fields
+        # ✅ NEVER return None or {} for missing data
         
-        # Extract estado (state)
-        estado_nacimiento = response.get("estadoNacimiento", "")
-        
-        # Build user details dict
-        # Includes both standard Open edX fields AND MéxicoX custom fields
-        # ✅ IMPORTANT: Include ALL fields even if empty so frontend can pre-fill form
-        n = datetime.now()
         user_details = {
-            # Standard Open edX fields
-            "id": response.get("idUsuario", ""),  # Usar idUsuario en vez de id
-            "username": curp,  # CURP as username (unique in Mexico)
+            # === Standard Open edX fields ===
+            "id": response.get("idUsuario", ""),
+            "username": username,
             "email": email,
-            "name": full_name,  # Required by frontend for auto-registration
-            "first_name": first_name,
+            "name": full_name,
+            "first_name": nombres,
             "last_name": last_name,
             
-            # MéxicoX custom fields (match frontend form field names EXACTLY)
-            "nombres": first_name,  # Frontend expects "nombres" not "first_name"
-            "primer_apellido": primer_apellido,  # Frontend expects separate apellidos
+            # === Llave MX custom fields (exactly as provided) ===
+            "nombres": nombres,
+            "primer_apellido": primer_apellido,
             "segundo_apellido": segundo_apellido,
             "curp": curp,
-            "estado": estado_nacimiento,  # Frontend expects "estado"
-            "municipio": municipio,  # Frontend expects "municipio"
+            "estado": estado,
+            "municipio": municipio,
+            "telefono": telefono,
+            "fechaNacimiento": fecha_nacimiento,
+            "sexo": sexo,
             
-            # Additional Llave MX data
-            "telefono": response.get("telefono", ""),
-            "fechaNacimiento": response.get("fechaNacimiento", ""),
-            "sexo": response.get("sexo", ""),
-            "correoVerificado": response.get("correoVerificado", False),
-            "telefonoVerificado": response.get("telefonoVerificado", False),
-            "refresh_token": response.get("refresh_token", ""),
-            "date_joined": str(n.isoformat()),
+            # === Verification flags (boolean) ===
+            "correoVerificado": correo_verificado,
+            "telefonoVerificado": telefono_verificado,
             
-            # ✅ Additional empty fields for frontend form (will be filled by user)
-            # These ensure the form has all required field names from the start
-            "pais": "",  # Country (for users outside Mexico)
-            "dni": "",   # ID for users outside Mexico
-            "ocupacion": "",  # Occupation
-            "maximo_nivel": "",  # Maximum education level
-            "eres_docente": False,  # Is teacher?
-            "cct": "",  # School key (if teacher)
-            "funcion": "",  # Teacher role (if teacher)
-            "nivel_Educativo": "",  # Education level teaching (if teacher)
-            "asignatura": "",  # Subject teaching (if teacher)
-            "cuentanos": "",  # Tell us about yourself
-            "tos": False,  # Terms of service
-            "honor_code": False,  # Honor code
+            # === Fields NOT provided by Llave MX ===
+            # These are set to empty string or false for frontend compatibility
+            # The MFE will show empty inputs for the user to fill
+            "pais": "",
+            "dni": "",
+            "ocupacion": "",
+            "maximo_nivel": "",
+            "eres_docente": False,
+            "cct": "",
+            "funcion": "",
+            "nivel_Educativo": "",
+            "asignatura": "",
+            "cuentanos": "",
         }
         
         if VERBOSE_LOGGING:
             # Log without PII
             safe_details = {
                 k: v for k, v in user_details.items()
-                if k not in ['curp', 'telefono', 'fechaNacimiento', 'refresh_token']
+                if k not in ['curp', 'telefono', 'fechaNacimiento', 'email']
             }
             logger.info("get_user_details() returning: {details}".format(
                 details=json.dumps(safe_details, sort_keys=True, indent=2, ensure_ascii=False)

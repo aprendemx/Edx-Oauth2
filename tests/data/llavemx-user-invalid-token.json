@@ -1,4 +1,0 @@
-{
-  "error": "invalid_token",
-  "error_description": "El token de acceso es inválido, ha expirado o fue revocado."
-}
