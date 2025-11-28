@@ -41,11 +41,12 @@ class LlaveMXOAuth2(BaseOAuth2):
     REQUIRES_EMAIL_VALIDATION = False
 
     # Endpoints Web (según el documento técnico)
-    AUTHORIZATION_URL = "https://val-llavemx.infotec.mx/oauth.xhtml"
-    ACCESS_TOKEN_URL = "https://val-api-llavemx.infotec.mx/ws/rest/oauth/obtenerToken"
-    USER_DATA_URL    = "https://val-api-llavemx.infotec.mx/ws/rest/oauth/datosUsuario"
-    ROLES_URL        = "https://val-api-llavemx.infotec.mx/ws/rest/oauth/getRolesUsuarioLogueado"
-    LOGOUT_URL       = "https://val-api-llavemx.infotec.mx/ws/rest/oauth/cerrarSesion"
+    AUTHORIZATION_URL = "https://val-llave.infotec.mx/oauth.xhtml"
+    ACCESS_TOKEN_URL = "https://val-api-llave.infotec.mx/ws/rest/oauth/obtenerToken"
+    USER_DATA_URL    = "https://val-api-llave.infotec.mx/ws/rest/oauth/datosUsuario"
+    ROLES_URL        = "https://val-api-llave.infotec.mx/ws/rest/oauth/getRolesUsuarioLogueado"
+    LOGOUT_URL       = "https://val-api-llave.infotec.mx/ws/rest/oauth/cerrarSesion"
+
 
     # Datos adicionales que se guardan en UserSocialAuth.extra_data
     EXTRA_DATA = [
