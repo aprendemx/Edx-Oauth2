@@ -8,12 +8,21 @@ Esta implementación sigue el Manual Técnico LlaveMX (Aplicación Web):
 - Todas las llamadas autenticadas usan BasicAuth (usuario_ws + password_ws)
 - Se consumen los endpoints Web: /ws/rest/oauth/*
 - Se mapean los campos requeridos por MéxicoX / EMI / MFEs
+
+NOTA DE SEGURIDAD:
+Este backend implementa MANUALMENTE el parámetro "state" para proteger
+contra ataques CSRF según el manual LlaveMX:
+    - Se genera un valor único por solicitud
+    - Se guarda en sesión
+    - Se valida al recibir el callback
 """
 
 import json
 import base64
 import logging
+import secrets
 from urllib.request import Request, urlopen
+from urllib.parse import urlencode
 
 from social_core.backends.oauth import BaseOAuth2
 from social_core.exceptions import AuthFailed, AuthUnknownError
@@ -24,23 +33,14 @@ VERBOSE = True
 
 
 class LlaveMXOAuth2(BaseOAuth2):
-    """
-    Backend OAuth2 de LlaveMX modo Web (no Apps).
-
-    Este backend implementa el flujo de Autorización OAuth2 tradicional:
-    - El usuario se autentica en LlaveMX
-    - LlaveMX devuelve un "code" al LMS
-    - Se intercambia el "code" por un accessToken usando clientSecret
-    - Con ese accessToken se consulta datos del usuario
-    """
 
     name = "llavemx"
-    REDIRECT_STATE = True
+    REDIRECT_STATE = False
     ACCESS_TOKEN_METHOD = "POST"
     DEFAULT_SCOPE = []
     REQUIRES_EMAIL_VALIDATION = False
 
-    # Endpoints Web (según el documento técnico)
+    # Endpoints Web
     AUTHORIZATION_URL = "https://val-llave.infotec.mx/oauth.xhtml"
     ACCESS_TOKEN_URL = "https://val-api-llave.infotec.mx/ws/rest/oauth/obtenerToken"
     USER_DATA_URL    = "https://val-api-llave.infotec.mx/ws/rest/oauth/datosUsuario"
@@ -48,7 +48,6 @@ class LlaveMXOAuth2(BaseOAuth2):
     LOGOUT_URL       = "https://val-api-llave.infotec.mx/ws/rest/oauth/cerrarSesion"
 
 
-    # Datos adicionales que se guardan en UserSocialAuth.extra_data
     EXTRA_DATA = [
         ("id", "id"),
         ("curp", "curp"),
@@ -64,13 +63,52 @@ class LlaveMXOAuth2(BaseOAuth2):
 
 
     # =============================================================
+    # STATE MANUAL (Seguridad CSRF)
+    # =============================================================
+    def generate_state(self):
+        """Genera un state seguro para prevenir CSRF."""
+        return secrets.token_urlsafe(32)
+
+    def auth_url(self):
+        """
+        Construye el URL de autorización incluyendo el parámetro STATE
+        generado manualmente según las notas de seguridad de LlaveMX.
+        """
+        state = self.generate_state()
+
+        # Guardarlo en sesión
+        self.strategy.session_set("llavemx_state", state)
+
+        params = {
+            "client_id": self.setting("KEY"),
+            "redirect_url": self.get_redirect_uri(),
+            "response_type": "code",
+            "state": state,
+        }
+
+        return f"{self.AUTHORIZATION_URL}?{urlencode(params)}"
+
+    def validate_state(self):
+        """
+        Valida que el state del callback coincida con el generado.
+        Protege contra ataques CSRF.
+        """
+        sent_state = self.data.get("state")
+        saved_state = self.strategy.session_get("llavemx_state")
+
+        if not sent_state or not saved_state or sent_state != saved_state:
+            raise AuthFailed(self, "State inválido o inexistente. Posible CSRF.")
+
+    def auth_complete(self, *args, **kwargs):
+        """Validación del state antes de continuar con el flujo OAuth."""
+        self.validate_state()
+        return super().auth_complete(*args, **kwargs)
+
+
+    # =============================================================
     # BASIC AUTH (usuario_ws + password_ws)
     # =============================================================
     def _basic_auth(self):
-        """
-        Construye el header Authorization: Basic <base64>
-        LlaveMX Web exige BasicAuth en token, datosUsuario y roles.
-        """
         user = settings.SOCIAL_AUTH_LLAVEMX_WS_USER
         pwd = settings.SOCIAL_AUTH_LLAVEMX_WS_PASSWORD
 
@@ -89,23 +127,10 @@ class LlaveMXOAuth2(BaseOAuth2):
     # TOKEN EXCHANGE (Authorization Code)
     # =============================================================
     def request_access_token(self, *args, **kwargs):
-        """
-        Intercambia el "code" recibido en el redirect por un accessToken.
-
-        Según el manual Web, JSON esperado:
-        {
-            "grantType": "authorization_code",
-            "code": "<code>",
-            "redirectUri": "...",
-            "clientId": "...",
-            "clientSecret": "..."
-        }
-        """
         code = self.data.get("code")
         if not code:
             raise AuthFailed(self, "No se recibió parámetro 'code'.")
 
-        # LlaveMX Web requiere client_secret obligatorio
         client_id = self.setting("KEY")
         client_secret = self.setting("SECRET")
         redirect_uri = self.get_redirect_uri()
@@ -120,7 +145,7 @@ class LlaveMXOAuth2(BaseOAuth2):
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": self._basic_auth(),  # BasicAuth requerida
+            "Authorization": self._basic_auth(),
             "Accept": "application/json",
         }
 
@@ -131,15 +156,13 @@ class LlaveMXOAuth2(BaseOAuth2):
                 headers=headers,
                 method="POST",
             )
-            resp = urlopen(req)  # llamada a LlaveMX
+            resp = urlopen(req)
             data = json.loads(resp.read().decode("utf-8"))
 
-            # Validar respuesta
             access_token = data.get("accessToken")
             if not access_token:
                 raise AuthFailed(self, "LlaveMX no retornó accessToken.")
 
-            # expiresIn puede venir en milisegundos → convertirlo a segundos
             expires_raw = data.get("expiresIn", 900)
             expires_in = int(expires_raw / 1000) if expires_raw > 10_000_000 else expires_raw
 
@@ -159,12 +182,6 @@ class LlaveMXOAuth2(BaseOAuth2):
     # USER DATA
     # =============================================================
     def user_data(self, access_token, *args, **kwargs):
-        """
-        Llama al servicio datosUsuario usando BasicAuth + accessToken.
-        Manual LlaveMX Web exige:
-        - Header Authorization: Basic ...
-        - Header accessToken: <accessToken>
-        """
         headers = {
             "Content-Type": "application/json",
             "Authorization": self._basic_auth(),
@@ -187,9 +204,6 @@ class LlaveMXOAuth2(BaseOAuth2):
 
 
     def _valid_user_response(self, data):
-        """
-        Valida los campos mínimos que LlaveMX Web garantiza.
-        """
         if not isinstance(data, dict):
             return False
         if "idUsuario" not in data:
@@ -203,9 +217,6 @@ class LlaveMXOAuth2(BaseOAuth2):
     # USER ID
     # =============================================================
     def get_user_id(self, details, response):
-        """
-        Open edX identifica al usuario usando idUsuario.
-        """
         return str(response.get("idUsuario") or details.get("username"))
 
 
@@ -213,14 +224,6 @@ class LlaveMXOAuth2(BaseOAuth2):
     # USER DETAILS MAPPING
     # =============================================================
     def get_user_details(self, response):
-        """
-        Mapea el JSON de LlaveMX a los campos usados por MéxicoX/EMI:
-        - username → CURP si existe, si no login
-        - email → correo
-        - first_name, last_name
-        - estadoNacimiento, municipio
-        - campos extra para MFE
-        """
         curp = (response.get("curp") or "").strip()
         login = (response.get("login") or "").strip()
         username = curp if curp else login
@@ -244,7 +247,6 @@ class LlaveMXOAuth2(BaseOAuth2):
             "first_name": nombres,
             "last_name": last_name,
 
-            # Datos específicos para MéxicoX / EMI
             "nombres": nombres,
             "primer_apellido": primer_ap,
             "segundo_apellido": segundo_ap,
@@ -257,7 +259,6 @@ class LlaveMXOAuth2(BaseOAuth2):
             "estado": response.get("estadoNacimiento") or "",
             "municipio": (response.get("domicilio") or {}).get("alcaldiaMunicipio", ""),
 
-            # Campos que el MFE espera
             "pais": "",
             "dni": "",
             "ocupacion": "",
