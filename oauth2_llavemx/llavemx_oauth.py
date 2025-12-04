@@ -7,14 +7,26 @@ Esta implementación sigue el Manual Técnico LlaveMX (Aplicación Web):
 - Se usa client_secret obligatorio
 - Todas las llamadas autenticadas usan BasicAuth (usuario_ws + password_ws)
 - Se consumen los endpoints Web: /ws/rest/oauth/*
-- Se mapean los campos requeridos por MéxicoX / EMI / MFEs
 
-NOTA DE SEGURIDAD:
-Este backend implementa MANUALMENTE el parámetro "state" para proteger
-contra ataques CSRF según el manual LlaveMX:
-    - Se genera un valor único por solicitud
-    - Se guarda en sesión
-    - Se valida al recibir el callback
+NOTAS DE SEGURIDAD IMPLEMENTADAS:
+
+1) Parámetro "state" contra CSRF (Manual LlaveMX, sección 3.2)
+   - Valor criptográficamente seguro y único por solicitud
+   - Se guarda en sesión
+   - Se valida al recibir el callback
+
+2) Intercambio de "code" por "token" SOLO desde backend (3.5)
+   - Se hace desde el servidor usando BasicAuth y client_secret
+   - Se maneja el escenario de "code" inválido/expirado
+
+3) Manejo seguro de token de acceso (4.1)
+   - No se expone al frontend
+   - Se valida respuesta y error "invalid_token"
+
+4) Cierre de sesión remoto LlaveMX (5.1)
+   - Se implementa revoke_token() que llama al WS /cerrarSesion
+   - Se usa BasicAuth + accessToken en header
+   - Se envía body "{}" para evitar HTTP 411 en productivo
 """
 
 import json
@@ -22,6 +34,7 @@ import base64
 import logging
 import secrets
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
 from social_core.backends.oauth import BaseOAuth2
@@ -47,7 +60,8 @@ class LlaveMXOAuth2(BaseOAuth2):
     ROLES_URL        = "https://val-api-llave.infotec.mx/ws/rest/oauth/getRolesUsuarioLogueado"
     LOGOUT_URL       = "https://val-api-llave.infotec.mx/ws/rest/oauth/cerrarSesion"
 
-
+    # NOTA DE SEGURIDAD:
+    # Guardamos también el access_token para poder consumir /cerrarSesion
     EXTRA_DATA = [
         ("id", "id"),
         ("curp", "curp"),
@@ -57,10 +71,10 @@ class LlaveMXOAuth2(BaseOAuth2):
         ("correoVerificado", "correoVerificado"),
         ("telefonoVerificado", "telefonoVerificado"),
         ("refresh_token", "refresh_token"),
+        ("access_token", "access_token"),
     ]
 
     UPDATE_USER_ON_LOGIN = True
-
 
     # =============================================================
     # STATE MANUAL (Seguridad CSRF)
@@ -76,7 +90,6 @@ class LlaveMXOAuth2(BaseOAuth2):
         """
         state = self.generate_state()
 
-        # Guardarlo en sesión
         self.strategy.session_set("llavemx_state", state)
 
         params = {
@@ -100,10 +113,13 @@ class LlaveMXOAuth2(BaseOAuth2):
             raise AuthFailed(self, "State inválido o inexistente. Posible CSRF.")
 
     def auth_complete(self, *args, **kwargs):
-        """Validación del state antes de continuar con el flujo OAuth."""
+        """
+        Validación del state antes de continuar con el flujo OAuth.
+        NOTA DE SEGURIDAD:
+        - LlaveMX ya valida internamente el redirect_url registrado.
+        """
         self.validate_state()
         return super().auth_complete(*args, **kwargs)
-
 
     # =============================================================
     # BASIC AUTH (usuario_ws + password_ws)
@@ -122,11 +138,17 @@ class LlaveMXOAuth2(BaseOAuth2):
         encoded = base64.b64encode(raw).decode("utf-8")
         return f"Basic {encoded}"
 
-
     # =============================================================
     # TOKEN EXCHANGE (Authorization Code)
     # =============================================================
     def request_access_token(self, *args, **kwargs):
+        """
+        Canjea el "code" por un access_token usando el WS de LlaveMX.
+
+        NOTA DE SEGURIDAD:
+        - Esta llamada se hace SOLO desde backend (Manual LlaveMX 3.5).
+        - Se maneja explícitamente el caso de code inválido/expirado.
+        """
         code = self.data.get("code")
         if not code:
             raise AuthFailed(self, "No se recibió parámetro 'code'.")
@@ -157,14 +179,26 @@ class LlaveMXOAuth2(BaseOAuth2):
                 method="POST",
             )
             resp = urlopen(req)
-            data = json.loads(resp.read().decode("utf-8"))
+            raw = resp.read().decode("utf-8") or "{}"
+            data = json.loads(raw)
+
+            # Manejo explícito de errores devueltos por LlaveMX
+            if isinstance(data, dict) and data.get("error"):
+                error = data.get("error")
+                description = data.get("errorDescription") or data.get("error_description") or ""
+                msg = f"Error al obtener token LlaveMX: {error} - {description}"
+
+                # NOTA DE SEGURIDAD: si el code expiró o es inválido,
+                # forzamos a que el usuario reinicie el flujo de login.
+                raise AuthFailed(self, msg)
 
             access_token = data.get("accessToken")
             if not access_token:
                 raise AuthFailed(self, "LlaveMX no retornó accessToken.")
 
             expires_raw = data.get("expiresIn", 900)
-            expires_in = int(expires_raw / 1000) if expires_raw > 10_000_000 else expires_raw
+            # Manual: expiresIn en milisegundos; convertimos si es necesario
+            expires_in = int(expires_raw / 1000) if isinstance(expires_raw, (int, float)) and expires_raw > 10_000_000 else expires_raw
 
             return {
                 "access_token": access_token,
@@ -173,15 +207,41 @@ class LlaveMXOAuth2(BaseOAuth2):
                 "token_type": "Bearer",
             }
 
-        except Exception as e:
-            logger.error(f"LlaveMX token error: {e}")
-            raise AuthUnknownError(self, str(e))
+        except HTTPError as e:
+            # Intentamos leer el detalle de error del body
+            try:
+                body = e.read().decode("utf-8") or "{}"
+                data = json.loads(body)
+            except Exception:
+                data = {}
 
+            error = data.get("error") or e.reason
+            description = data.get("errorDescription") or data.get("error_description") or ""
+            msg = f"LlaveMX token HTTPError ({e.code}): {error} - {description}"
+            logger.error(msg)
+            raise AuthFailed(self, msg)
+        except (URLError, ValueError) as e:
+            logger.error(f"LlaveMX token error de red/parsing: {e}")
+            raise AuthUnknownError(self, str(e))
+        except AuthFailed:
+            # Ya está formateado arriba, sólo lo propagamos
+            raise
+        except Exception as e:
+            logger.error(f"LlaveMX token error inesperado: {e}")
+            raise AuthUnknownError(self, str(e))
 
     # =============================================================
     # USER DATA
     # =============================================================
     def user_data(self, access_token, *args, **kwargs):
+        """
+        Obtiene los datos del usuario desde LlaveMX usando el accessToken.
+
+        NOTA DE SEGURIDAD:
+        - El token se envía SOLO por header desde backend.
+        - No se expone el token ni la respuesta completa en el frontend.
+        - Si LlaveMX responde 'invalid_token', se fuerza reautenticación.
+        """
         headers = {
             "Content-Type": "application/json",
             "Authorization": self._basic_auth(),
@@ -191,17 +251,46 @@ class LlaveMXOAuth2(BaseOAuth2):
         try:
             req = Request(self.USER_DATA_URL, headers=headers, method="GET")
             resp = urlopen(req)
-            data = json.loads(resp.read().decode("utf-8"))
+            raw = resp.read().decode("utf-8") or "{}"
+            data = json.loads(raw)
+
+            # Manejo explícito de invalid_token
+            if isinstance(data, dict) and data.get("error"):
+                error = data.get("error")
+                description = data.get("errorDescription") or data.get("error_description") or ""
+                msg = f"Error al obtener datos de usuario LlaveMX: {error} - {description}"
+
+                if error == "invalid_token":
+                    # NOTA DE SEGURIDAD:
+                    # No damos acceso, obligamos a reiniciar el flujo de autenticación.
+                    raise AuthFailed(self, msg)
+
+                raise AuthUnknownError(self, msg)
 
             if not self._valid_user_response(data):
-                raise AuthFailed(self, "Respuesta inválida de LlaveMX.")
+                raise AuthFailed(self, "Respuesta inválida de LlaveMX al obtener datos de usuario.")
 
             return data
 
-        except Exception as e:
-            logger.error(f"LlaveMX user_data error: {e}")
+        except HTTPError as e:
+            try:
+                body = e.read().decode("utf-8") or "{}"
+                data = json.loads(body)
+            except Exception:
+                data = {}
+            error = data.get("error") or e.reason
+            description = data.get("errorDescription") or data.get("error_description") or ""
+            msg = f"LlaveMX user_data HTTPError ({e.code}): {error} - {description}"
+            logger.error(msg)
+            raise AuthFailed(self, msg)
+        except (URLError, ValueError) as e:
+            logger.error(f"LlaveMX user_data error de red/parsing: {e}")
             raise AuthUnknownError(self, str(e))
-
+        except AuthFailed:
+            raise
+        except Exception as e:
+            logger.error(f"LlaveMX user_data error inesperado: {e}")
+            raise AuthUnknownError(self, str(e))
 
     def _valid_user_response(self, data):
         if not isinstance(data, dict):
@@ -212,13 +301,11 @@ class LlaveMXOAuth2(BaseOAuth2):
             return False
         return True
 
-
     # =============================================================
     # USER ID
     # =============================================================
     def get_user_id(self, details, response):
         return str(response.get("idUsuario") or details.get("username"))
-
 
     # =============================================================
     # USER DETAILS MAPPING
@@ -270,3 +357,41 @@ class LlaveMXOAuth2(BaseOAuth2):
             "asignatura": "",
             "cuentanos": "",
         }
+
+    # =============================================================
+    # LOGOUT / REVOCACIÓN DE TOKEN
+    # =============================================================
+    def revoke_token(self, token, response=None, *args, **kwargs):
+        """
+        Cierra la sesión de la cuenta LlaveMX consumiendo el WS /cerrarSesion.
+
+        NOTA DE SEGURIDAD (Manual 5.1):
+        - Se usa BasicAuth (usuario_ws + password_ws).
+        - Se envía accessToken en header.
+        - Se envía body "{}" para evitar HTTP 411 en productivo.
+        """
+        if not token:
+            return
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": self._basic_auth(),
+            "accessToken": token,
+        }
+
+        try:
+            req = Request(
+                self.LOGOUT_URL,
+                data="{}".encode("utf-8"),  # workaround HTTP 411 Length Required
+                headers=headers,
+                method="POST",
+            )
+            resp = urlopen(req)
+            raw = resp.read().decode("utf-8") or "{}"
+            data = json.loads(raw)
+            if VERBOSE:
+                logger.info(f"LlaveMX logout response: {data}")
+        except Exception as e:
+            logger.error(f"LlaveMX logout error: {e}")
+            # No rompemos el logout de Open edX aunque falle el WS remoto.
+            return
