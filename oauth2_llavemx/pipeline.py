@@ -1,44 +1,44 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from registration_form.models import ExtraInfo  # tu modelo real
+from social_core.exceptions import AuthFailed
 
-def auto_create_user_for_llavemx(strategy, backend, details, user=None, *args, **kwargs):
+User = get_user_model()
+
+def associate_by_curp(strategy, details, backend, user=None, *args, **kwargs):
     """
-    Automatically create users coming from Llave MX.
-    Prevents redirection to /register.
+    Intenta enlazar automáticamente una cuenta local usando el CURP
+    recibido desde LlaveMX.
+
+    Esto funciona cuando el usuario YA EXISTE pero no había
+    enlazado su cuenta con LlaveMX anteriormente.
     """
 
-    # Only apply to Llave MX provider
+    # Solo se ejecuta para LlaveMX
     if backend.name != "llavemx":
         return
 
-    # If user already exists, nothing to do
+    # Si PSA ya encontró usuario asociado → no hacemos nada
     if user:
+        return {"is_new": False, "user": user}
+
+    curp = details.get("curp")
+
+    if not curp or curp.strip() == "":
+        # LlaveMX no regresó CURP → no podemos enlazar
         return
 
-    username = details.get("username")
-    email = details.get("email") or f"{username}@llavemx.temp"
-    first_name = details.get("first_name", "")
-    last_name = details.get("last_name", "")
+    try:
+        extra = ExtraInfo.objects.get(curp__iexact=curp.strip())
+        usuario_local = extra.user
 
-    # If user exists in DB already, reuse it
-    existing = User.objects.filter(username=username).first()
-    if existing:
+        # IMPORTANTE: regresamos user y marcamos is_new=False
+        # para que NO vaya al flujo de registro
         return {
-            "user": existing,
+            "user": usuario_local,
             "is_new": False,
             "details": details,
         }
 
-    # Create NEW user
-    new_user = User.objects.create(
-        username=username,
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        is_active=True,
-    )
-
-    return {
-        "user": new_user,
-        "is_new": False,   # <-- CRÍTICO para NO mandar a /register
-        "details": details,
-    }
+    except ExtraInfo.DoesNotExist:
+        # No existe usuario con ese CURP → sigue el pipeline normal
+        return
