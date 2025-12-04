@@ -1,44 +1,73 @@
+# oauth2_llavemx/pipeline.py
+from social_django.models import UserSocialAuth
 from django.contrib.auth import get_user_model
-from registration_form.models import ExtraInfo  # tu modelo real
-from social_core.exceptions import AuthFailed
+from django.db import transaction
 
 User = get_user_model()
 
-def associate_by_curp(strategy, details, backend, user=None, *args, **kwargs):
+def associate_by_curp(strategy, backend, uid, details, user=None, *args, **kwargs):
     """
-    Intenta enlazar automáticamente una cuenta local usando el CURP
-    recibido desde LlaveMX.
+    Asociación automática de cuentas para LlaveMX.
 
-    Esto funciona cuando el usuario YA EXISTE pero no había
-    enlazado su cuenta con LlaveMX anteriormente.
+    - Si el usuario YA existe en LMS → vincula
+    - Si solo se encuentra por CURP → vincula
+    - Si no existe → dejar que pipeline normal lo cree
     """
 
-    # Solo se ejecuta para LlaveMX
     if backend.name != "llavemx":
         return
 
-    # Si PSA ya encontró usuario asociado → no hacemos nada
+    # Si ya hay usuario autenticado, no hacer nada
     if user:
-        return {"is_new": False, "user": user}
+        return {"user": user}
 
-    curp = details.get("curp")
+    curp = details.get("curp") or details.get("CURP") or ""
+    email = details.get("email") or ""
+    provider = backend.name
+    uid_str = str(uid)
 
-    if not curp or curp.strip() == "":
-        # LlaveMX no regresó CURP → no podemos enlazar
-        return
-
+    # ------------------------------------------
+    # 1) Si ya existe un vínculo social → login normal
+    # ------------------------------------------
     try:
-        extra = ExtraInfo.objects.get(curp__iexact=curp.strip())
-        usuario_local = extra.user
+        existing_social = UserSocialAuth.objects.get(provider=provider, uid=uid_str)
+        return {"user": existing_social.user}
+    except UserSocialAuth.DoesNotExist:
+        pass
 
-        # IMPORTANTE: regresamos user y marcamos is_new=False
-        # para que NO vaya al flujo de registro
-        return {
-            "user": usuario_local,
-            "is_new": False,
-            "details": details,
-        }
+    # ------------------------------------------
+    # 2) Buscar por CURP (preferido)
+    # ------------------------------------------
+    if curp:
+        try:
+            existing_by_curp = User.objects.get(profile__curp=curp)
+            with transaction.atomic():
+                UserSocialAuth.objects.create(
+                    user=existing_by_curp,
+                    provider=provider,
+                    uid=uid_str,
+                )
+            return {"user": existing_by_curp}
+        except User.DoesNotExist:
+            pass
 
-    except ExtraInfo.DoesNotExist:
-        # No existe usuario con ese CURP → sigue el pipeline normal
-        return
+    # ------------------------------------------
+    # 3) Buscar por email
+    # ------------------------------------------
+    if email:
+        try:
+            existing_by_email = User.objects.get(email=email)
+            with transaction.atomic():
+                UserSocialAuth.objects.create(
+                    user=existing_by_email,
+                    provider=provider,
+                    uid=uid_str,
+                )
+            return {"user": existing_by_email}
+        except User.DoesNotExist:
+            pass
+
+    # ------------------------------------------
+    # 4) No existe → que las fases siguientes creen usuario
+    # ------------------------------------------
+    return None
