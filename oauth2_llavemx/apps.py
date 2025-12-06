@@ -1,35 +1,35 @@
 from django.apps import AppConfig
 from django.conf import settings
 
+
 class OAuth2LlaveMXConfig(AppConfig):
     name = "oauth2_llavemx"
     verbose_name = "OAuth2 LlaveMX"
 
     def ready(self):
         """
-        Inserta associate_by_curp DESPUÉS de third_party_auth.apply_settings,
-        garantizando que nuestro paso no se pierda.
+        Inserta associate_by_curp en el pipeline REAL usado por Open edX.
+
+        - Funciona en LMS, CMS y Celery.
+        - No usa monkeypatch (evita Apps aren't loaded yet).
+        - Respeta el pipeline ya generado por third_party_auth.apply_settings.
         """
-        from common.djangoapps.third_party_auth import settings as tpa_settings
 
-        original_apply = tpa_settings.apply_settings
+        pipeline = list(getattr(settings, "SOCIAL_AUTH_PIPELINE", []))
+        custom = "oauth2_llavemx.pipeline.associate_by_curp"
 
-        def wrapped_apply(django_settings):
-            # Ejecutar configuración original
-            original_apply(django_settings)
+        if not pipeline or custom in pipeline:
+            return
 
-            pipeline = list(getattr(django_settings, "SOCIAL_AUTH_PIPELINE", []))
-            anchor = "social_core.pipeline.social_auth.social_user"
-            step = "oauth2_llavemx.pipeline.associate_by_curp"
+        # Paso real que existe en Open edX (NO el de social_core)
+        anchor = "common.djangoapps.third_party_auth.pipeline.social_user"
 
-            if step not in pipeline:
-                if anchor in pipeline:
-                    pipeline.insert(pipeline.index(anchor) + 1, step)
-                else:
-                    pipeline.append(step)
+        if anchor in pipeline:
+            idx = pipeline.index(anchor)
+            pipeline.insert(idx + 1, custom)
+        else:
+            # fallback defensivo
+            pipeline.append(custom)
 
-            django_settings.SOCIAL_AUTH_PIPELINE = pipeline
-            django_settings.THIRD_PARTY_AUTH_PIPELINE = list(pipeline)
-
-        # Monkeypatch correcto
-        tpa_settings.apply_settings = wrapped_apply
+        settings.SOCIAL_AUTH_PIPELINE = pipeline
+        settings.THIRD_PARTY_AUTH_PIPELINE = list(pipeline)

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oauth2-llavemx"
-version = "3.2.0"
+version = "3.2.1"
 description = "LlaveMX OAuth2 backend for Open edX using python-social-auth."
 readme = "README.md"
 requires-python = ">=3.8"
