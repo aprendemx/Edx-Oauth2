@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import MultipleObjectsReturned
 from social_django.models import UserSocialAuth
 
+from custom_reg_form.models import ExtraInfo
+
 User = get_user_model()
 __all__ = ["associate_by_curp"]
 
@@ -33,6 +35,12 @@ def associate_by_curp(strategy, backend, uid, details, user=None, *args, **kwarg
         return {"user": existing_social.user}
 
     if curp:
+        extra_user = ExtraInfo.objects.filter(curp__iexact=curp.strip()).select_related("user").first()
+        if extra_user:
+            user_obj = extra_user.user
+            UserSocialAuth.objects.get_or_create(user=user_obj, provider=provider, uid=uid_str)
+            return {"user": user_obj}
+
         try:
             curp_user = User.objects.select_related("profile").get(profile__curp__iexact=curp)
         except User.DoesNotExist:
