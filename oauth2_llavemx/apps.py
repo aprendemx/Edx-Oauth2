@@ -53,7 +53,9 @@ class OAuth2LlaveMXConfig(AppConfig):
                 if custom_step not in pipeline:
                     if anchor_tpa in pipeline:
                         idx = pipeline.index(anchor_tpa)
-                        pipeline.insert(idx + 1, custom_step)
+                        # CRITICAL FIX: Insert BEFORE ensure_user_information (idx), not after (idx + 1)
+                        # asegúrese de que el usuario sea encontrado antes de validar información insuficiente
+                        pipeline.insert(idx, custom_step)
                     elif anchor_social in pipeline:
                         idx = pipeline.index(anchor_social)
                         pipeline.insert(idx, custom_step)
@@ -61,7 +63,7 @@ class OAuth2LlaveMXConfig(AppConfig):
                         pipeline.append(custom_step)
 
                     tpa_pipeline.AUTH_PIPELINE = pipeline
-                    logger.info("[LlaveMX] AUTH_PIPELINE patched successfully.")
+                    logger.info("[LlaveMX] AUTH_PIPELINE patched successfully (inserted BEFORE ensure_user_info).")
             else:
                 logger.warning("[LlaveMX] AUTH_PIPELINE not found to patch")
         except Exception as e:
