@@ -16,53 +16,34 @@ class OAuth2LlaveMXConfig(AppConfig):
         """
         self._inject_pipeline_step()
 
-    def _inject_pipeline_step(self):
-        custom_step = "oauth2_llavemx.pipeline.associate_by_curp"
-        anchor_step = "social_core.pipeline.user.create_user"
+def _inject_pipeline_step(self):
+    import common.djangoapps.third_party_auth.pipeline as tpa_pipeline
+    from django.conf import settings
+    import logging
 
-        pipeline = getattr(settings, "SOCIAL_AUTH_PIPELINE", None)
+    logger = logging.getLogger(__name__)
 
-        if not pipeline:
-            logger.warning(
-                "[LlaveMX] SOCIAL_AUTH_PIPELINE no definido; no se puede parchear."
-            )
-            return
+    custom_step = "oauth2_llavemx.pipeline.associate_by_curp"
+    anchor = "common.djangoapps.third_party_auth.pipeline.ensure_user_information"
 
-        # Asegurarnos de tener una lista mutable que todos compartan
-        if isinstance(pipeline, tuple):
-            pipeline = list(pipeline)
-            setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
-
-        if not isinstance(pipeline, list):
-            logger.warning(
-                "[LlaveMX] SOCIAL_AUTH_PIPELINE no es list (%s): %r",
-                type(pipeline),
-                pipeline,
-            )
-            return
-
-        # Ya está insertado → no hacemos nada
-        if custom_step in pipeline:
-            logger.info(
-                "[LlaveMX] Paso '%s' ya presente en SOCIAL_AUTH_PIPELINE. No se modifica.",
-                custom_step,
-            )
-            return
-
-        try:
-            idx = pipeline.index(anchor_step)
+    # --- 1. Patch SOCIAL_AUTH_PIPELINE (settings) ---
+    try:
+        pipeline = list(settings.SOCIAL_AUTH_PIPELINE)
+        if custom_step not in pipeline:
+            idx = pipeline.index("social_core.pipeline.user.create_user")
             pipeline.insert(idx, custom_step)
-            logger.info(
-                "[LlaveMX] Paso '%s' insertado antes de '%s' en índice %s.",
-                custom_step,
-                anchor_step,
-                idx,
-            )
-        except ValueError:
-            # Si por alguna razón no está el anchor, lo ponemos al final
-            pipeline.append(custom_step)
-            logger.info(
-                "[LlaveMX] Anchor '%s' no encontrado. Paso '%s' añadido al final.",
-                anchor_step,
-                custom_step,
-            )
+            setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
+            logger.info("[LlaveMX] Patch SOCIAL_AUTH_PIPELINE successful.")
+    except Exception as e:
+        logger.error(f"[LlaveMX] Error patching SOCIAL_AUTH_PIPELINE: {e}")
+
+    # --- 2. Patch THIRD_PARTY_AUTH pipeline (internal module) ---
+    try:
+        pipeline = list(tpa_pipeline.AUTH_PIPELINE)
+        if custom_step not in pipeline:
+            idx = pipeline.index(anchor)
+            pipeline.insert(idx + 1, custom_step)
+            tpa_pipeline.AUTH_PIPELINE = pipeline
+            logger.info("[LlaveMX] Patch THIRD_PARTY_AUTH pipeline successful.")
+    except Exception as e:
+        logger.error(f"[LlaveMX] Error patching THIRD_PARTY_AUTH pipeline: {e}")
