@@ -11,9 +11,9 @@ class OAuth2LlaveMXConfig(AppConfig):
 
     def ready(self):
         """
-        Inserta associate_by_curp en el pipeline real usado por Open edX.
-        Se envuelve en try/except para evitar que LMS/CMS colapsen
-        si algo falla durante la carga temprana.
+        Inserts associate_by_curp into the SOCIAL_AUTH_PIPELINE.
+        We rely on the fact that TPA's settings are applied early, 
+        so we modify the settings.SOCIAL_AUTH_PIPELINE list directly.
         """
         try:
             self._inject_pipeline_step()
@@ -21,50 +21,48 @@ class OAuth2LlaveMXConfig(AppConfig):
             logger.exception("[LlaveMX] Error during pipeline injection")
 
     def _inject_pipeline_step(self):
-        # Importación tardía: asegura que third_party_auth ya está cargado
-        import common.djangoapps.third_party_auth.pipeline as tpa_pipeline
-
         custom_step = "oauth2_llavemx.pipeline.associate_by_curp"
+        
+        # We target ensuring the user exists BEFORE standard user information checks
+        anchor_step = "common.djangoapps.third_party_auth.pipeline.ensure_user_information"
+        
+        # Fallback anchor if the above is missing
+        fallback_anchor = "social_core.pipeline.user.create_user"
 
-        anchor_social = "social_core.pipeline.user.create_user"
-        anchor_tpa = "common.djangoapps.third_party_auth.pipeline.ensure_user_information"
-
-        # --- 1. Patch SOCIAL_AUTH_PIPELINE ---
         try:
-            pipeline = list(getattr(settings, "SOCIAL_AUTH_PIPELINE", []))
+            # TPA Overwrites SOCIAL_AUTH_PIPELINE, so we must edit THAT list.
+            # We access it from django.conf.settings
+            
+            # We get the list object. IMPORTANT: We cast to list to avoid tuple immutability issues
+            # though TPA sets it as a list hardcoded.
+            current_pipeline = getattr(settings, "SOCIAL_AUTH_PIPELINE", [])
+            
+            # If it's a tuple, we must convert to list and RE-SET it. 
+            # If it's a list, we can modify in place, but re-setting is safer.
+            pipeline = list(current_pipeline)
 
-            if pipeline and custom_step not in pipeline:
-                if anchor_social in pipeline:
-                    idx = pipeline.index(anchor_social)
-                    pipeline.insert(idx, custom_step)
-                else:
-                    pipeline.append(custom_step)
+            if custom_step in pipeline:
+                logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE already contains custom step.")
+                return
 
-                setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
-                logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE patched successfully.")
-        except Exception as e:
-            logger.error(f"[LlaveMX] Error patching SOCIAL_AUTH_PIPELINE: {e}")
-
-        # --- 2. Patch AUTH_PIPELINE interno de Third Party Auth ---
-        try:
-            if hasattr(tpa_pipeline, "AUTH_PIPELINE"):
-                pipeline = list(tpa_pipeline.AUTH_PIPELINE)
-
-                if custom_step not in pipeline:
-                    if anchor_tpa in pipeline:
-                        idx = pipeline.index(anchor_tpa)
-                        # CRITICAL FIX: Insert BEFORE ensure_user_information (idx), not after (idx + 1)
-                        # asegúrese de que el usuario sea encontrado antes de validar información insuficiente
-                        pipeline.insert(idx, custom_step)
-                    elif anchor_social in pipeline:
-                        idx = pipeline.index(anchor_social)
-                        pipeline.insert(idx, custom_step)
-                    else:
-                        pipeline.append(custom_step)
-
-                    tpa_pipeline.AUTH_PIPELINE = pipeline
-                    logger.info("[LlaveMX] AUTH_PIPELINE patched successfully (inserted BEFORE ensure_user_info).")
+            if anchor_step in pipeline:
+                idx = pipeline.index(anchor_step)
+                # INSERT BEFORE ensure_user_information
+                pipeline.insert(idx, custom_step)
+                logger.info(f"[LlaveMX] Injected custom step BEFORE {anchor_step}.")
+            
+            elif fallback_anchor in pipeline:
+                idx = pipeline.index(fallback_anchor)
+                pipeline.insert(idx, custom_step)
+                logger.info(f"[LlaveMX] Injected custom step BEFORE {fallback_anchor}.")
+            
             else:
-                logger.warning("[LlaveMX] AUTH_PIPELINE not found to patch")
+                pipeline.append(custom_step)
+                logger.warning("[LlaveMX] Anchors not found. Appended custom step to end.")
+
+            # Apply the modified list back to settings
+            setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
+            logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE updated successfully.")
+
         except Exception as e:
-            logger.error(f"[LlaveMX] Error patching AUTH_PIPELINE: {e}")
+            logger.error(f"[LlaveMX] Failed to patch SOCIAL_AUTH_PIPELINE: {e}")
