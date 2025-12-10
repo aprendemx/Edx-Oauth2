@@ -1,7 +1,11 @@
 import logging
 
 from django.contrib.auth import get_user_model
-from custom_reg_form.models import ExtraInfo
+
+try:
+    from custom_reg_form.models import ExtraInfo
+except Exception:
+    ExtraInfo = None
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -9,14 +13,25 @@ User = get_user_model()
 
 def associate_by_curp(backend, details, user=None, *args, **kwargs):
     """
-    Paso de pipeline para asociar por CURP.
-
-    DEBUG:
-    - Siempre logea cuando entra.
-    - No filtramos por backend.name para ver si realmente se ejecuta.
+    Paso de pipeline para asociar por CURP SOLO cuando el backend es LlaveMX.
+    Esto evita romper Studio (edx-oauth2) y el login normal.
     """
 
     backend_name = getattr(backend, "name", None)
+
+    # 🔐 ***FILTRO CRÍTICO*** → SOLO ejecutar si el backend es LlaveMX
+    if backend_name != "llavemx":
+        logger.warning(
+            "[LlaveMX][DEBUG] associate_by_curp ignorado. backend=%s (no es llavemx)",
+            backend_name,
+        )
+        return {"user": user}
+
+    # Si por alguna razón ExtraInfo no existe, no rompemos nada
+    if ExtraInfo is None:
+        logger.error("[LlaveMX][ERROR] ExtraInfo no está disponible. Se omite asociación por CURP.")
+        return {"user": user}
+
     curp = (details or {}).get("curp")
     email = (details or {}).get("email")
 
@@ -28,26 +43,28 @@ def associate_by_curp(backend, details, user=None, *args, **kwargs):
         getattr(user, "id", None),
     )
 
-    # Si ya hay usuario, no hacemos nada (ya lo encontró otro paso)
+    # Si ya hay usuario, no hacemos nada
     if user is not None:
         logger.warning(
-            "[LlaveMX][DEBUG] Ya viene user en el pipeline (id=%s). No reasociamos.",
+            "[LlaveMX][DEBUG] Ya viene user (id=%s). No reasociamos.",
             user.id,
         )
         return {"user": user}
 
+    # Sin CURP no hay asociación
     if not curp:
-        logger.warning("[LlaveMX][DEBUG] No hay CURP en details. No se asocia.")
-        return {}
+        logger.warning("[LlaveMX][DEBUG] No hay CURP. No se asocia.")
+        return {"user": None}
 
-    # Buscar ExtraInfo por CURP (ignorando mayúsculas/minúsculas)
+    # Busca ExtraInfo por CURP
     matches = ExtraInfo.objects.filter(curp__iexact=curp).select_related("user")
 
     if not matches.exists():
         logger.warning(
-            "[LlaveMX][DEBUG] No se encontró ExtraInfo para CURP=%s", curp
+            "[LlaveMX][DEBUG] No se encontró ExtraInfo para CURP=%s",
+            curp,
         )
-        return {}
+        return {"user": None}
 
     extra = matches.first()
     user = extra.user
@@ -59,5 +76,4 @@ def associate_by_curp(backend, details, user=None, *args, **kwargs):
         user.email,
     )
 
-    # Devolvemos el usuario para que el pipeline continúe ya asociado
     return {"user": user}
