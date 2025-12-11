@@ -21,11 +21,15 @@ class OAuth2LlaveMXConfig(AppConfig):
             logger.exception("[LlaveMX] Error during pipeline injection")
 
     def _inject_pipeline_step(self):
-        custom_step = "oauth2_llavemx.pipeline.associate_by_curp"
-        
-        # We target ensuring the user exists BEFORE standard user information checks
+        custom_steps = [
+            "oauth2_llavemx.pipeline.preserve_llavemx_details",
+            "oauth2_llavemx.pipeline.associate_by_curp",
+        ]
+
+        # Target: antes de ensure_user_information para que los details completos
+        # queden en el partial y se expongan a TPA/MFE.
         anchor_step = "common.djangoapps.third_party_auth.pipeline.ensure_user_information"
-        
+
         # Fallback anchor if the above is missing
         fallback_anchor = "social_core.pipeline.user.create_user"
 
@@ -41,24 +45,22 @@ class OAuth2LlaveMXConfig(AppConfig):
             # If it's a list, we can modify in place, but re-setting is safer.
             pipeline = list(current_pipeline)
 
-            if custom_step in pipeline:
-                logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE already contains custom step.")
-                return
+            # Insert custom steps if missing
+            for step in reversed(custom_steps):
+                if step in pipeline:
+                    continue
 
-            if anchor_step in pipeline:
-                idx = pipeline.index(anchor_step)
-                # INSERT BEFORE ensure_user_information
-                pipeline.insert(idx, custom_step)
-                logger.info(f"[LlaveMX] Injected custom step BEFORE {anchor_step}.")
-            
-            elif fallback_anchor in pipeline:
-                idx = pipeline.index(fallback_anchor)
-                pipeline.insert(idx, custom_step)
-                logger.info(f"[LlaveMX] Injected custom step BEFORE {fallback_anchor}.")
-            
-            else:
-                pipeline.append(custom_step)
-                logger.warning("[LlaveMX] Anchors not found. Appended custom step to end.")
+                if anchor_step in pipeline:
+                    idx = pipeline.index(anchor_step)
+                    pipeline.insert(idx, step)
+                    logger.info(f"[LlaveMX] Injected custom step BEFORE {anchor_step}: {step}")
+                elif fallback_anchor in pipeline:
+                    idx = pipeline.index(fallback_anchor)
+                    pipeline.insert(idx, step)
+                    logger.info(f"[LlaveMX] Injected custom step BEFORE {fallback_anchor}: {step}")
+                else:
+                    pipeline.append(step)
+                    logger.warning("[LlaveMX] Anchors not found. Appended custom step to end.")
 
             # Apply the modified list back to settings
             setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
