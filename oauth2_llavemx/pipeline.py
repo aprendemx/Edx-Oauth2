@@ -86,6 +86,7 @@ def preserve_llavemx_details(backend, details=None, *args, **kwargs):
     - Solo aplica cuando el backend es LlaveMX.
     - Reinyecta `details` en kwargs para que queden en el partial pipeline
       y sean expuestos como `pipeline_user_details` en el endpoint de TPA.
+    - Además los persiste en sesión (llavemx_details) como fallback para el MFE.
     """
     backend_name = getattr(backend, "name", None)
     if backend_name != "llavemx":
@@ -94,4 +95,11 @@ def preserve_llavemx_details(backend, details=None, *args, **kwargs):
     # Garantizamos que details no sea None y se mantenga intacto
     details = details or {}
     kwargs["details"] = details
+
+    # Persistir en sesión como respaldo para MFE
+    try:
+        backend.strategy.session_set("llavemx_details", details)
+    except Exception:
+        logger.exception("[LlaveMX] No se pudo guardar llavemx_details en sesión.")
+
     return {"details": details}

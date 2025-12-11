@@ -17,6 +17,7 @@ class OAuth2LlaveMXConfig(AppConfig):
         """
         try:
             self._inject_pipeline_step()
+            self._patch_mfe_context()
         except Exception:
             logger.exception("[LlaveMX] Error during pipeline injection")
 
@@ -68,3 +69,36 @@ class OAuth2LlaveMXConfig(AppConfig):
 
         except Exception as e:
             logger.error(f"[LlaveMX] Failed to patch SOCIAL_AUTH_PIPELINE: {e}")
+
+    def _patch_mfe_context(self):
+        """
+        Parche pequeño para que, si el pipeline_user_details viene vacío,
+        pero la sesión trae llavemx_details, el MFE reciba esos datos.
+        No toca el core, solo envuelve las funciones utilitarias.
+        """
+        try:
+            from openedx.core.djangoapps.user_authn.views import utils as auth_utils
+
+            def _with_llavemx_fallback(fn):
+                def wrapper(request, *args, **kwargs):
+                    context = fn(request, *args, **kwargs)
+                    if not context:
+                        return context
+
+                    pud = context.get("pipeline_user_details") or {}
+                    if not pud:
+                        session_details = getattr(request, "session", {}).get("llavemx_details") or {}
+                        if session_details:
+                            context["pipeline_user_details"] = session_details
+                            # set currentProvider if missing
+                            context.setdefault("currentProvider", "llavemx")
+                    return context
+                return wrapper
+
+            auth_utils.get_auth_context = _with_llavemx_fallback(auth_utils.get_auth_context)
+            auth_utils.get_mfe_context = _with_llavemx_fallback(auth_utils.get_mfe_context)
+
+            logger.info("[LlaveMX] Patched MFE/auth context to include llavemx_details fallback.")
+
+        except Exception as e:
+            logger.exception(f"[LlaveMX] Failed to patch MFE context: {e}")
