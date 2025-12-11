@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 class OAuth2LlaveMXConfig(AppConfig):
     name = "oauth2_llavemx"
     verbose_name = "OAuth2 LlaveMX Integration"
+    _pipeline_patched = False
+    _context_patched = False
 
     def ready(self):
         """
@@ -22,6 +24,9 @@ class OAuth2LlaveMXConfig(AppConfig):
             logger.exception("[LlaveMX] Error during pipeline injection")
 
     def _inject_pipeline_step(self):
+        if self._pipeline_patched:
+            return
+
         custom_steps = [
             "oauth2_llavemx.pipeline.preserve_llavemx_details",
             "oauth2_llavemx.pipeline.associate_by_curp",
@@ -66,6 +71,7 @@ class OAuth2LlaveMXConfig(AppConfig):
             # Apply the modified list back to settings
             setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
             logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE updated successfully.")
+            self._pipeline_patched = True
 
         except Exception as e:
             logger.error(f"[LlaveMX] Failed to patch SOCIAL_AUTH_PIPELINE: {e}")
@@ -76,6 +82,9 @@ class OAuth2LlaveMXConfig(AppConfig):
         pero la sesión trae llavemx_details, el MFE reciba esos datos.
         No toca el core, solo envuelve las funciones utilitarias.
         """
+        if self._context_patched:
+            return
+
         try:
             from openedx.core.djangoapps.user_authn.views import utils as auth_utils
 
@@ -87,7 +96,8 @@ class OAuth2LlaveMXConfig(AppConfig):
 
                     pud = context.get("pipeline_user_details") or {}
                     if not pud:
-                        session_details = getattr(request, "session", {}).get("llavemx_details") or {}
+                        session_obj = getattr(request, "session", {}) or {}
+                        session_details = session_obj.get("llavemx_details") or {}
                         if session_details:
                             context["pipeline_user_details"] = session_details
                             # set currentProvider if missing
@@ -112,5 +122,6 @@ class OAuth2LlaveMXConfig(AppConfig):
 
             ContextDataSerializer.get_pipelineUserDetails = _get_pipeline_user_details_passthrough
             logger.info("[LlaveMX] Patched ContextDataSerializer to return full pipeline_user_details.")
+            self._context_patched = True
         except Exception as e:
             logger.exception(f"[LlaveMX] Failed to patch serializer for pipeline_user_details: {e}")
