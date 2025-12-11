@@ -102,3 +102,15 @@ class OAuth2LlaveMXConfig(AppConfig):
 
         except Exception as e:
             logger.exception(f"[LlaveMX] Failed to patch MFE context: {e}")
+
+        # Parche para exponer todos los fields en pipeline_user_details (sin serialización restrictiva)
+        try:
+            from openedx.core.djangoapps.user_authn.serializers import ContextDataSerializer
+
+            def _get_pipeline_user_details_passthrough(self, obj):  # pylint: disable=unused-argument
+                return obj.get("pipeline_user_details") or {}
+
+            ContextDataSerializer.get_pipelineUserDetails = _get_pipeline_user_details_passthrough
+            logger.info("[LlaveMX] Patched ContextDataSerializer to return full pipeline_user_details.")
+        except Exception as e:
+            logger.exception(f"[LlaveMX] Failed to patch serializer for pipeline_user_details: {e}")
