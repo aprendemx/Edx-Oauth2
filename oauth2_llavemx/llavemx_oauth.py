@@ -157,7 +157,6 @@ class LlaveMXOAuth2(BaseOAuth2):
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
             "Authorization": self._basic_auth(),
-            "Accept": "application/json",
         }
 
         try:
