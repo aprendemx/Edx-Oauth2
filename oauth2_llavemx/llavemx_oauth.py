@@ -142,27 +142,39 @@ class LlaveMXOAuth2(BaseOAuth2):
     # TOKEN EXCHANGE (Authorization Code)
     # =============================================================
     def request_access_token(self, *args, **kwargs):
+        """
+        Canjea el "code" por un access_token usando el WS de LlaveMX.
+
+        NOTA DE SEGURIDAD:
+        - Esta llamada se hace SOLO desde backend (Manual LlaveMX 3.5).
+        - Se maneja explícitamente el caso de code inválido/expirado.
+        """
         code = self.data.get("code")
         if not code:
             raise AuthFailed(self, "No se recibió parámetro 'code'.")
 
+        client_id = self.setting("KEY")
+        client_secret = self.setting("SECRET")
         redirect_uri = self.get_redirect_uri()
 
         payload = {
-            "grant_type": "authorization_code",
+            "grantType": "authorization_code",
             "code": code,
-            "redirect_uri": redirect_uri,
+            "redirectUri": redirect_uri,
+            "clientId": client_id,
+            "clientSecret": client_secret,
         }
 
         headers = {
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json",
             "Authorization": self._basic_auth(),
+            "Accept": "application/json",
         }
 
         try:
             req = Request(
                 self.ACCESS_TOKEN_URL,
-                data=urlencode(payload).encode("utf-8"),
+                data=json.dumps(payload).encode("utf-8"),
                 headers=headers,
                 method="POST",
             )
@@ -170,27 +182,53 @@ class LlaveMXOAuth2(BaseOAuth2):
             raw = resp.read().decode("utf-8") or "{}"
             data = json.loads(raw)
 
-            if data.get("error"):
-                raise AuthFailed(
-                    self,
-                    f"Error LlaveMX token: {data.get('error')} - {data.get('errorDescription')}"
-                )
+            # Manejo explícito de errores devueltos por LlaveMX
+            if isinstance(data, dict) and data.get("error"):
+                error = data.get("error")
+                description = data.get("errorDescription") or data.get("error_description") or ""
+                msg = f"Error al obtener token LlaveMX: {error} - {description}"
+
+                # NOTA DE SEGURIDAD: si el code expiró o es inválido,
+                # forzamos a que el usuario reinicie el flujo de login.
+                raise AuthFailed(self, msg)
 
             access_token = data.get("accessToken")
             if not access_token:
                 raise AuthFailed(self, "LlaveMX no retornó accessToken.")
 
+            expires_raw = data.get("expiresIn", 900)
+            # Manual: expiresIn en milisegundos; convertimos si es necesario
+            expires_in = int(expires_raw / 1000) if isinstance(expires_raw, (int, float)) and expires_raw > 10_000_000 else expires_raw
+
             return {
                 "access_token": access_token,
-                "expires_in": data.get("expiresIn", 900),
+                "expires_in": expires_in,
                 "refresh_token": data.get("refreshToken"),
                 "token_type": "Bearer",
             }
 
         except HTTPError as e:
-            body = e.read().decode("utf-8")
-            logger.error(f"LlaveMX token HTTPError {e.code}: {body}")
-            raise AuthFailed(self, f"LlaveMX token HTTPError ({e.code})")
+            # Intentamos leer el detalle de error del body
+            try:
+                body = e.read().decode("utf-8") or "{}"
+                data = json.loads(body)
+            except Exception:
+                data = {}
+
+            error = data.get("error") or e.reason
+            description = data.get("errorDescription") or data.get("error_description") or ""
+            msg = f"LlaveMX token HTTPError ({e.code}): {error} - {description}"
+            logger.error(msg)
+            raise AuthFailed(self, msg)
+        except (URLError, ValueError) as e:
+            logger.error(f"LlaveMX token error de red/parsing: {e}")
+            raise AuthUnknownError(self, str(e))
+        except AuthFailed:
+            # Ya está formateado arriba, sólo lo propagamos
+            raise
+        except Exception as e:
+            logger.error(f"LlaveMX token error inesperado: {e}")
+            raise AuthUnknownError(self, str(e))
 
     # =============================================================
     # USER DATA
