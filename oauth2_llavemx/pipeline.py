@@ -13,70 +13,97 @@ User = get_user_model()
 
 def associate_by_curp(backend, details, user=None, *args, **kwargs):
     """
-    Paso de pipeline para asociar por CURP SOLO cuando el backend es LlaveMX.
-    Esto evita romper Studio (edx-oauth2) y el login normal.
+    Asociación por CURP SOLO para LlaveMX.
+    Reglas:
+    - No tocar si ya hay user
+    - Ignorar CURP genérico
+    - Asociar SOLO si hay exactamente UN usuario activo
+    - Bloquear si hay ambigüedad
     """
 
     backend_name = getattr(backend, "name", None)
 
-    # 🔐 ***FILTRO CRÍTICO*** → SOLO ejecutar si el backend es LlaveMX
+    # 🔐 Solo LlaveMX
     if backend_name != "llavemx":
-        logger.warning(
-            "[LlaveMX][DEBUG] associate_by_curp ignorado. backend=%s (no es llavemx)",
-            backend_name,
-        )
         return {"user": user}
 
-    # Si por alguna razón ExtraInfo no existe, no rompemos nada
+    # Seguridad defensiva
     if ExtraInfo is None:
-        logger.error("[LlaveMX][ERROR] ExtraInfo no está disponible. Se omite asociación por CURP.")
+        logger.error("[LlaveMX] ExtraInfo no disponible. Se omite CURP.")
         return {"user": user}
 
-    curp = (details or {}).get("curp")
-    email = (details or {}).get("email")
+    # Si ya hay usuario, no reasociar
+    if user is not None:
+        return {"user": user}
+
+    details = details or {}
+    curp = details.get("curp")
 
     logger.warning(
-        "[LlaveMX][DEBUG] associate_by_curp llamado. backend=%s curp=%s email=%s user=%s",
-        backend_name,
+        "[LlaveMX][DEBUG] associate_by_curp curp=%s",
         curp,
-        email,
-        getattr(user, "id", None),
     )
 
-    # Si ya hay usuario, no hacemos nada
-    if user is not None:
-        logger.warning(
-            "[LlaveMX][DEBUG] Ya viene user (id=%s). No reasociamos.",
-            user.id,
-        )
-        return {"user": user}
-
-    # Sin CURP no hay asociación
+    # Sin CURP → no asociar
     if not curp:
-        logger.warning("[LlaveMX][DEBUG] No hay CURP. No se asocia.")
         return {"user": None}
 
-    # Busca ExtraInfo por CURP
-    matches = ExtraInfo.objects.filter(curp__iexact=curp).select_related("user")
+    # CURP genérico → NO asociar
+    if curp.upper() == "XEXX010101HDFXXX04":
+        logger.warning("[LlaveMX] CURP genérico detectado. Asociación bloqueada.")
+        return {"user": None}
+
+    # Buscar coincidencias
+    matches = (
+        ExtraInfo.objects
+        .filter(curp__iexact=curp)
+        .select_related("user")
+    )
 
     if not matches.exists():
-        logger.warning(
-            "[LlaveMX][DEBUG] No se encontró ExtraInfo para CURP=%s",
+        return {"user": None}
+
+    # Extraer usuarios válidos
+    users = [ei.user for ei in matches if ei.user]
+
+    # Filtrar activos
+    active_users = [u for u in users if u.is_active]
+
+    # 🔴 Caso peligroso: más de una cuenta activa
+    if len(active_users) > 1:
+        logger.error(
+            "[LlaveMX][BLOCKED] CURP duplicado con múltiples cuentas activas. "
+            "Asociación automática cancelada. curp=%s users=%s",
             curp,
+            [u.id for u in active_users],
         )
         return {"user": None}
 
-    extra = matches.first()
-    user = extra.user
+    # ✅ Caso seguro: exactamente una activa
+    if len(active_users) == 1:
+        u = active_users[0]
+        logger.warning(
+            "[LlaveMX] Asociación por CURP exitosa. user_id=%s",
+            u.id,
+        )
+        return {"user": u}
 
+    # 🟡 Caso raro: ninguno activo, pero solo uno total
+    if len(users) == 1:
+        u = users[0]
+        logger.warning(
+            "[LlaveMX] Asociación por CURP con cuenta inactiva. user_id=%s",
+            u.id,
+        )
+        return {"user": u}
+
+    # Todo lo demás → no asociar
     logger.warning(
-        "[LlaveMX][DEBUG] ExtraInfo encontrado. Asociando user.id=%s username=%s email=%s",
-        user.id,
-        user.username,
-        user.email,
+        "[LlaveMX] Asociación por CURP no concluyente. curp=%s total_users=%s",
+        curp,
+        len(users),
     )
-
-    return {"user": user}
+    return {"user": None}
 
 
 def preserve_llavemx_details(backend, details=None, *args, **kwargs):
