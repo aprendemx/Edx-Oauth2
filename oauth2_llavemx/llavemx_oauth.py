@@ -70,6 +70,9 @@ class LlaveMXOAuth2(BaseOAuth2):
         ("sexo", "sexo"),
         ("correoVerificado", "correoVerificado"),
         ("telefonoVerificado", "telefonoVerificado"),
+        ("es_extranjero", "es_extranjero"),
+        ("telefono_extranjero", "telefono_extranjero"),
+        ("iada_extranjero", "iada_extranjero"),
         ("refresh_token", "refresh_token"),
         ("access_token", "access_token"),
     ]
@@ -311,8 +314,20 @@ class LlaveMXOAuth2(BaseOAuth2):
     # USER DETAILS MAPPING
     # =============================================================
     def get_user_details(self, response):
-        curp = (response.get("curp") or "").strip()
+        # CURP: puede ser null para usuarios extranjeros (se guarda como cadena vacía)
+        curp_raw = response.get("curp")
+        curp = curp_raw.strip() if curp_raw else ""
+        
         login = (response.get("login") or "").strip()
+        
+        # Detectar si es extranjero
+        es_extranjero = bool(response.get("esExtranjero", False))
+        
+        # Si es extranjero, asignar CURP genérico
+        if es_extranjero and not curp:
+            curp = "XEXX010101HDFXXX04"
+        
+        # Username: usar CURP si existe (nacional o genérico extranjero), sino login
         username = curp if curp else login
 
         email = (response.get("correo") or "").strip()
@@ -326,6 +341,20 @@ class LlaveMXOAuth2(BaseOAuth2):
         full_name = " ".join(filter(None, [nombres, primer_ap, segundo_ap]))
         last_name = " ".join(filter(None, [primer_ap, segundo_ap]))
 
+        telefono_extranjero = response.get("telefonoExtranjero") or ""
+        iada_extranjero = response.get("iadaExtranjero") or ""
+
+        # Teléfono: priorizar telVigente, luego telefonoExtranjero si es extranjero
+        telefono = response.get("telVigente") or response.get("telefono") or ""
+        if es_extranjero and not telefono and telefono_extranjero:
+            telefono = telefono_extranjero
+
+        # Municipio: si es extranjero, asignar 'FUERA DE MÉXICO'
+        if es_extranjero:
+            municipio = "FUERA DE MÉXICO"
+        else:
+            municipio = (response.get("domicilio") or {}).get("alcaldiaMunicipio", "")
+
         return {
             "id": response.get("idUsuario", ""),
             "username": username,
@@ -338,13 +367,18 @@ class LlaveMXOAuth2(BaseOAuth2):
             "primer_apellido": primer_ap,
             "segundo_apellido": segundo_ap,
             "curp": curp,
-            "telefono": response.get("telVigente") or response.get("telefono") or "",
+            "telefono": telefono,
             "fechaNacimiento": response.get("fechaNacimiento") or "",
             "sexo": response.get("sexo") or "",
             "correoVerificado": bool(response.get("correoVerificado", False)),
             "telefonoVerificado": bool(response.get("telefonoVerificado", False)),
             "estado": response.get("estadoNacimiento") or "",
-            "municipio": (response.get("domicilio") or {}).get("alcaldiaMunicipio", ""),
+            "municipio": municipio,  # "FUERA DE MÉXICO" para extranjeros
+
+            # Campos específicos para extranjeros
+            "es_extranjero": es_extranjero,
+            "telefono_extranjero": telefono_extranjero,
+            "iada_extranjero": iada_extranjero,
 
             "pais": "",
             "dni": "",
