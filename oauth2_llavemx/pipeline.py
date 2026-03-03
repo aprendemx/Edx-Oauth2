@@ -22,9 +22,16 @@ def associate_by_curp(backend, details, user=None, *args, **kwargs):
     """
 
     backend_name = getattr(backend, "name", None)
+    
+    logger.warning(
+        "[LlaveMX][DEBUG] associate_by_curp INVOCADO - backend=%s, user=%s",
+        backend_name,
+        user,
+    )
 
     # 🔐 Solo LlaveMX
     if backend_name != "llavemx":
+        logger.warning("[LlaveMX][DEBUG] Backend no es llavemx, saltando")
         return {"user": user}
 
     # Seguridad defensiva
@@ -32,16 +39,31 @@ def associate_by_curp(backend, details, user=None, *args, **kwargs):
         logger.error("[LlaveMX] ExtraInfo no disponible. Se omite CURP.")
         return {"user": user}
 
-    # Si ya hay usuario, no reasociar
+    # Si ya hay usuario, verificar que esté activo
     if user is not None:
+        logger.warning(
+            "[LlaveMX][DEBUG] Ya existe user=%s (is_active=%s)",
+            user.id if hasattr(user, 'id') else user,
+            user.is_active if hasattr(user, 'is_active') else 'N/A',
+        )
+        # CRÍTICO: Si LlaveMX autentica exitosamente, el usuario DEBE estar activo
+        # Esto cubre el caso de usuarios registrados desde móvil
+        if hasattr(user, 'is_active') and not user.is_active:
+            user.is_active = True
+            user.save(update_fields=["is_active"])
+            logger.warning(
+                "[LlaveMX] Usuario encontrado por social-auth estaba inactivo - REACTIVADO. user_id=%s",
+                user.id,
+            )
         return {"user": user}
 
     details = details or {}
     curp = details.get("curp")
 
     logger.warning(
-        "[LlaveMX][DEBUG] associate_by_curp curp=%s",
+        "[LlaveMX][DEBUG] associate_by_curp curp=%s, details=%s",
         curp,
+        list(details.keys()),
     )
 
     # Sin CURP → no asociar
