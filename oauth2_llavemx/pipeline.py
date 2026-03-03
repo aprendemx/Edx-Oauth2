@@ -89,12 +89,21 @@ def associate_by_curp(backend, details, user=None, *args, **kwargs):
         return {"user": u}
 
     # 🟡 Caso raro: ninguno activo, pero solo uno total
+    # IMPORTANTE: Si LlaveMX autentica exitosamente, activamos la cuenta
     if len(users) == 1:
         u = users[0]
-        logger.warning(
-            "[LlaveMX] Asociación por CURP con cuenta inactiva. user_id=%s",
-            u.id,
-        )
+        if not u.is_active:
+            u.is_active = True
+            u.save(update_fields=["is_active"])
+            logger.warning(
+                "[LlaveMX] Asociación por CURP con cuenta inactiva - REACTIVADA. user_id=%s",
+                u.id,
+            )
+        else:
+            logger.warning(
+                "[LlaveMX] Asociación por CURP con cuenta inactiva. user_id=%s",
+                u.id,
+            )
         return {"user": u}
 
     # Todo lo demás → no asociar
