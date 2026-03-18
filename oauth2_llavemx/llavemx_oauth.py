@@ -54,11 +54,11 @@ class LlaveMXOAuth2(BaseOAuth2):
     REQUIRES_EMAIL_VALIDATION = False
 
     # Endpoints Web
-    AUTHORIZATION_URL = "https://www.val-llave.infotec.mx/oauth.xhtml"
-    ACCESS_TOKEN_URL  = "https://www.api.llave.gob.mx/ws/rest/oauth/obtenerToken"
-    USER_DATA_URL     = "https://www.api.llave.gob.mx/ws/rest/oauth/datosUsuario"
-    ROLES_URL         = "https://www.api.llave.gob.mx/ws/rest/oauth/getRolesUsuarioLogueado"
-    LOGOUT_URL        = "https://www.api.llave.gob.mx/ws/rest/oauth/cerrarSesion"
+    AUTHORIZATION_URL = "https://val-llave.infotec.mx/oauth.xhtml"
+    ACCESS_TOKEN_URL  = "https://api.llave.gob.mx/ws/rest/oauth/obtenerToken"
+    USER_DATA_URL     = "https://api.llave.gob.mx/ws/rest/oauth/datosUsuario"
+    ROLES_URL         = "https://api.llave.gob.mx/ws/rest/oauth/getRolesUsuarioLogueado"
+    LOGOUT_URL        = "https://api.llave.gob.mx/ws/rest/oauth/cerrarSesion"
 
     # NOTA DE SEGURIDAD:
     # Guardamos también el access_token para poder consumir /cerrarSesion
