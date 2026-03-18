@@ -42,7 +42,6 @@ from social_core.exceptions import AuthFailed, AuthUnknownError
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-VERBOSE = True
 
 
 class LlaveMXOAuth2(BaseOAuth2):
@@ -57,7 +56,6 @@ class LlaveMXOAuth2(BaseOAuth2):
     AUTHORIZATION_URL = "https://val-llave.infotec.mx/oauth.xhtml"
     ACCESS_TOKEN_URL  = "https://val-api-llave.infotec.mx/ws/rest/oauth/obtenerToken"
     USER_DATA_URL     = "https://val-api-llave.infotec.mx/ws/rest/oauth/datosUsuario"
-    ROLES_URL         = "https://val-api-llave.infotec.mx/ws/rest/oauth/getRolesUsuarioLogueado"
     LOGOUT_URL        = "https://val-api-llave.infotec.mx/ws/rest/oauth/cerrarSesion"
 
     # NOTA DE SEGURIDAD:
@@ -423,8 +421,7 @@ class LlaveMXOAuth2(BaseOAuth2):
             resp = urlopen(req)
             raw = resp.read().decode("utf-8") or "{}"
             data = json.loads(raw)
-            if VERBOSE:
-                logger.info(f"LlaveMX logout response: {data}")
+            logger.info("LlaveMX logout response: %s", data)
         except Exception as e:
             logger.error(f"LlaveMX logout error: {e}")
             # No rompemos el logout de Open edX aunque falle el WS remoto.
