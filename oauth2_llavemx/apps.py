@@ -33,18 +33,12 @@ class OAuth2LlaveMXConfig(AppConfig):
         fallback_anchor = "social_core.pipeline.user.create_user"
 
         try:
-            # TPA Overwrites SOCIAL_AUTH_PIPELINE, so we must edit THAT list.
-            # We access it from django.conf.settings
-            
-            # We get the list object. IMPORTANT: We cast to list to avoid tuple immutability issues
-            # though TPA sets it as a list hardcoded.
+            # TPA sobreescribe SOCIAL_AUTH_PIPELINE, por lo que debemos editar esa lista.
+            # Se convierte a list para evitar problemas de inmutabilidad si fuera tupla.
             current_pipeline = getattr(settings, "SOCIAL_AUTH_PIPELINE", [])
-            
-            # If it's a tuple, we must convert to list and RE-SET it. 
-            # If it's a list, we can modify in place, but re-setting is safer.
             pipeline = list(current_pipeline)
 
-            # Insert custom steps if missing
+            # Insertar los pasos personalizados si no están presentes
             for step in reversed(custom_steps):
                 if step in pipeline:
                     continue
@@ -61,11 +55,9 @@ class OAuth2LlaveMXConfig(AppConfig):
                     pipeline.append(step)
                     logger.warning("[LlaveMX] Anchors not found. Appended custom step to end.")
 
-            # Apply the modified list back to settings
             setattr(settings, "SOCIAL_AUTH_PIPELINE", pipeline)
-            logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE updated successfully.")
+            logger.info("[LlaveMX] SOCIAL_AUTH_PIPELINE actualizado correctamente.")
             self._pipeline_patched = True
 
         except Exception as e:
-            logger.error(f"[LlaveMX] Failed to patch SOCIAL_AUTH_PIPELINE: {e}")
-
+            logger.error("[LlaveMX] Error al parchear SOCIAL_AUTH_PIPELINE: %s", e)

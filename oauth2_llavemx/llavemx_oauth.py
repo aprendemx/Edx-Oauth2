@@ -90,7 +90,6 @@ class LlaveMXOAuth2(BaseOAuth2):
         generado manualmente según las notas de seguridad de LlaveMX.
         """
         state = self.generate_state()
-
         self.strategy.session_set("llavemx_state", state)
 
         params = {
@@ -99,7 +98,6 @@ class LlaveMXOAuth2(BaseOAuth2):
             "response_type": "code",
             "state": state,
         }
-
         return f"{self.AUTHORIZATION_URL}?{urlencode(params)}"
 
     def validate_state(self):
@@ -315,16 +313,15 @@ class LlaveMXOAuth2(BaseOAuth2):
         # CURP: puede ser null para usuarios extranjeros (se guarda como cadena vacía)
         curp_raw = response.get("curp")
         curp = curp_raw.strip() if curp_raw else ""
-        
         login = (response.get("login") or "").strip()
-        
+
         # Detectar si es extranjero
         es_extranjero = bool(response.get("esExtranjero", False))
-        
+
         # Si es extranjero, asignar CURP genérico
         if es_extranjero and not curp:
             curp = "XEXX010101HDFXXX04"
-        
+
         # Username: usar CURP si existe (nacional o genérico extranjero), sino login
         username = curp if curp else login
 
