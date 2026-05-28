@@ -96,6 +96,7 @@ def preserve_llavemx_details(backend, details=None, *args, **kwargs):
         return {}
 
     details = details or {}
+    kwargs["details"] = details
 
     try:
         backend.strategy.session_set("llavemx_details", details)

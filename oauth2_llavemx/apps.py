@@ -9,10 +9,12 @@ class OAuth2LlaveMXConfig(AppConfig):
     name = "oauth2_llavemx"
     verbose_name = "OAuth2 LlaveMX Integration"
     _pipeline_patched = False
+    _context_patched = False
 
     def ready(self):
         try:
             self._inject_pipeline_step()
+            self._patch_mfe_context()
         except Exception:
             logger.exception("[LlaveMX] Error during pipeline injection")
 
@@ -61,3 +63,53 @@ class OAuth2LlaveMXConfig(AppConfig):
 
         except Exception as e:
             logger.error("[LlaveMX] Error al parchear SOCIAL_AUTH_PIPELINE: %s", e)
+
+    def _patch_mfe_context(self):
+        """
+        Parche para que el MFE reciba todos los campos de LlaveMX en pipelineUserDetails.
+
+        Dos parches:
+        1. get_auth_context / get_mfe_context: si pipeline_user_details viene vacío,
+           usar llavemx_details de sesión como fallback.
+        2. ContextDataSerializer.get_pipelineUserDetails: passthrough completo del dict
+           para que lleguen los campos custom (curp, nombres, etc.) sin filtrado.
+        """
+        if self._context_patched:
+            return
+
+        try:
+            from openedx.core.djangoapps.user_authn.views import utils as auth_utils
+
+            def _with_llavemx_fallback(fn):
+                def wrapper(request, *args, **kwargs):
+                    context = fn(request, *args, **kwargs)
+                    if not context:
+                        return context
+                    pud = context.get("pipeline_user_details") or {}
+                    if not pud:
+                        session_details = (getattr(request, "session", {}) or {}).get("llavemx_details") or {}
+                        if session_details:
+                            context["pipeline_user_details"] = session_details
+                            context.setdefault("currentProvider", "llavemx")
+                    return context
+                return wrapper
+
+            auth_utils.get_auth_context = _with_llavemx_fallback(auth_utils.get_auth_context)
+            auth_utils.get_mfe_context = _with_llavemx_fallback(auth_utils.get_mfe_context)
+            logger.info("[LlaveMX] Parche aplicado a get_auth_context / get_mfe_context.")
+
+        except Exception:
+            logger.exception("[LlaveMX] No se pudo parchear MFE context utils.")
+
+        try:
+            from openedx.core.djangoapps.user_authn.serializers import ContextDataSerializer
+
+            def _pipeline_user_details_passthrough(self, obj):
+                return obj.get("pipeline_user_details") or {}
+
+            ContextDataSerializer.get_pipelineUserDetails = _pipeline_user_details_passthrough
+            logger.info("[LlaveMX] Parche aplicado a ContextDataSerializer.get_pipelineUserDetails.")
+            self._context_patched = True
+
+        except Exception:
+            logger.exception("[LlaveMX] No se pudo parchear ContextDataSerializer.")
